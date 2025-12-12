@@ -42,6 +42,97 @@ def get_package_dir():
     return Path(__file__).parent
 
 
+def is_desktop_integration_installed():
+    """Check if desktop integration is already installed"""
+    desktop_file = Path.home() / ".local/share/applications/telly-spelly.desktop"
+    icon_file = Path.home() / ".local/share/icons/hicolor/128x128/apps/telly-spelly.png"
+    return desktop_file.exists() and icon_file.exists()
+
+
+def install_silent():
+    """Install desktop integration silently (no output). Returns True if installed."""
+    if is_desktop_integration_installed():
+        return False
+
+    install_icon_silent()
+    install_desktop_entry_silent()
+    install_kde_shortcuts_silent()
+    return True
+
+
+def install_icon_silent():
+    """Install the application icon silently"""
+    icon_dest = Path.home() / ".local/share/icons/hicolor/128x128/apps"
+    icon_dest.mkdir(parents=True, exist_ok=True)
+
+    icon_sources = [
+        get_package_dir() / "telly-spelly.png",
+        get_package_dir().parent.parent / "telly-spelly.png",
+        Path.cwd() / "telly-spelly.png",
+    ]
+
+    for src in icon_sources:
+        if src.exists():
+            shutil.copy(src, icon_dest / "telly-spelly.png")
+            break
+
+    try:
+        subprocess.run(
+            ["gtk-update-icon-cache", "-f", "-t", str(Path.home() / ".local/share/icons/hicolor")],
+            capture_output=True
+        )
+    except FileNotFoundError:
+        pass
+
+
+def install_desktop_entry_silent():
+    """Install the desktop entry silently"""
+    apps_dir = Path.home() / ".local/share/applications"
+    apps_dir.mkdir(parents=True, exist_ok=True)
+
+    desktop_file = apps_dir / "telly-spelly.desktop"
+    desktop_file.write_text(DESKTOP_ENTRY)
+
+    try:
+        subprocess.run(["update-desktop-database", str(apps_dir)], capture_output=True)
+    except FileNotFoundError:
+        pass
+
+
+def install_kde_shortcuts_silent():
+    """Install KDE shortcut configuration silently"""
+    shortcuts_dir = Path.home() / ".local/share/kglobalaccel"
+    shortcuts_dir.mkdir(parents=True, exist_ok=True)
+
+    shortcut_file = shortcuts_dir / "telly-spelly.desktop"
+    shortcut_file.write_text(SHORTCUT_ENTRY)
+
+    kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
+
+    shortcut_config = """
+[telly-spelly.desktop]
+ToggleRecording=Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording
+_k_friendly_name=Telly Spelly
+"""
+
+    if kglobal_rc.exists():
+        content = kglobal_rc.read_text()
+        if "[telly-spelly.desktop]" not in content:
+            with open(kglobal_rc, "a") as f:
+                f.write(shortcut_config)
+    else:
+        kglobal_rc.write_text(shortcut_config.strip() + "\n")
+
+    try:
+        subprocess.run(
+            ["dbus-send", "--session", "--type=signal", "/kglobalaccel",
+             "org.kde.kglobalaccel.reloadConfig"],
+            capture_output=True
+        )
+    except Exception:
+        pass
+
+
 def install_icon():
     """Install the application icon"""
     icon_dest = Path.home() / ".local/share/icons/hicolor/128x128/apps"

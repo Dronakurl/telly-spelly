@@ -20,6 +20,7 @@ import ctypes
 import os
 from .shortcuts import GlobalShortcuts
 from .settings import Settings
+from .install import install_silent
 # from mic_debug import MicDebugWindow
 
 # Setup logging
@@ -367,6 +368,10 @@ def main():
         if check_already_running():
             send_notification('Telly Spelly', 'Already running. Check your system tray.', 3000)
             return 0
+
+        # Auto-install desktop integration on first run
+        if install_silent():
+            logger.info("Desktop integration installed automatically")
 
         # Send startup notification (0 = no expiry, will be replaced when ready)
         startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 0)

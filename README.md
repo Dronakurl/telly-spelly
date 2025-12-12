@@ -30,13 +30,13 @@ uv tool install telly-spelly --index-url https://test.pypi.org/simple/ --extra-i
 pip install telly-spelly --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 ```
 
-### 3. Setup desktop integration
+### 3. Run
 
 ```bash
-telly-spelly-install
+telly-spelly
 ```
 
-This installs the app icon, desktop entry, and configures Ctrl+Alt+R shortcut.
+On first launch, desktop integration (icon, menu entry, Ctrl+Alt+R shortcut) is set up automatically.
 
 ## Usage
 
