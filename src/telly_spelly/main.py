@@ -388,7 +388,7 @@ def main():
         # Replace startup notification with ready notification when initialization completes
         def on_init_complete():
             # Replace the startup notification with the ready notification
-            send_notification('Telly Spelly', 'Ready! Use Ctrl+Alt+R to toggle recording.', 5000, startup_notification_id)
+            send_notification('Telly Spelly', 'Ready! Configure shortcut in System Settings → Shortcuts → Telly Spelly', 8000, startup_notification_id)
 
         tray.initialization_complete.connect(on_init_complete)
 

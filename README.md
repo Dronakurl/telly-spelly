@@ -36,7 +36,11 @@ pip install telly-spelly --index-url https://test.pypi.org/simple/ --extra-index
 telly-spelly
 ```
 
-On first launch, desktop integration (icon, menu entry, Ctrl+Alt+R shortcut) is set up automatically.
+On first launch, desktop integration (icon, menu entry) is set up automatically.
+
+### 4. Configure shortcut
+
+Open **System Settings → Shortcuts → Telly Spelly** and set Ctrl+Alt+R for "Toggle Recording".
 
 ## Usage
 

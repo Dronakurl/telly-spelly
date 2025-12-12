@@ -56,7 +56,7 @@ def install_silent():
 
     install_icon_silent()
     install_desktop_entry_silent()
-    install_kde_shortcuts_silent()
+    # Note: KDE shortcuts must be configured manually in System Settings
     return True
 
 
