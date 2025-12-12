@@ -1,8 +1,10 @@
 # Telly Spelly
 
-Voice-to-text transcription for KDE Plasma using OpenAI's Whisper.
+Voice-to-text transcription using OpenAI's Whisper.
 
 Press a keyboard shortcut, speak, press again - your words are transcribed and copied to the clipboard.
+
+**Supports:** KDE Plasma 5/6 and XFCE4
 
 ## Installation
 
@@ -10,12 +12,12 @@ Press a keyboard shortcut, speak, press again - your words are transcribed and c
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install portaudio19-dev libdbus-1-dev
+sudo apt install portaudio19-dev libdbus-1-dev python3-dev python3-venv
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S portaudio dbus
+sudo pacman -S portaudio dbus python
 ```
 
 ### 2. Install Telly Spelly
@@ -36,11 +38,12 @@ pip install telly-spelly --index-url https://test.pypi.org/simple/ --extra-index
 telly-spelly
 ```
 
-On first launch, desktop integration (icon, menu entry) is set up automatically.
+On first launch, desktop integration is set up automatically:
+- Application menu entry
+- System tray icon
+- Keyboard shortcut (Ctrl+Alt+R)
 
-### 4. Configure shortcut
-
-Open **System Settings → Shortcuts → Telly Spelly** and set Ctrl+Alt+R for "Toggle Recording".
+> **Note:** The app automatically detects your desktop environment (KDE or XFCE4) and configures itself appropriately.
 
 ## Usage
 
@@ -58,24 +61,29 @@ Right-click the tray icon → **Settings**:
 
 ## Requirements
 
-- KDE Plasma 5 or 6
-- Python 3.9+
-- ~2GB disk space (Whisper model)
-- NVIDIA GPU recommended (works on CPU)
+- **Desktop:** KDE Plasma 5/6 or XFCE4
+- **Python:** 3.9 or newer
+- **Storage:** ~2GB for Whisper model
+- **GPU:** NVIDIA recommended (CPU also works)
 
 ## Troubleshooting
 
 **Shortcuts not working?**
-- Check System Settings → Shortcuts → Telly Spelly
-- Log out and back in after first setup
 
-**No audio?**
-- Check microphone in system settings
-- Try different input device in Telly Spelly settings
+Try these steps:
+1. Log out and back in after first installation
+2. Check your desktop's keyboard shortcuts settings:
+   - **KDE:** System Settings → Shortcuts → Telly Spelly
+   - **XFCE4:** Settings → Keyboard → Application Shortcuts
+3. Look for Ctrl+Alt+R assigned to Telly Spelly
+
+**No audio captured?**
+- Verify your microphone works in system settings
+- Try selecting a different input device in Telly Spelly settings (right-click tray icon → Settings)
 
 **Slow transcription?**
-- Use smaller model (tiny/base)
-- Install CUDA for GPU acceleration
+- Use a smaller Whisper model (tiny or base) in Settings
+- For faster performance, install CUDA for GPU acceleration
 
 ## License
 
