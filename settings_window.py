@@ -1,51 +1,16 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox,
                             QGroupBox, QFormLayout, QProgressBar, QPushButton,
-                            QLineEdit, QMessageBox)
+                            QMessageBox)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 import logging
-from PyQt6.QtGui import QKeySequence
+import subprocess
 from settings import Settings
 
 logger = logging.getLogger(__name__)
 
-class ShortcutEdit(QLineEdit):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setReadOnly(True)
-        self.setPlaceholderText("Click to set shortcut...")
-        self.recording = False
-        
-    def keyPressEvent(self, event):
-        if not self.recording:
-            return
-            
-        modifiers = event.modifiers()
-        key = event.key()
-        
-        if key == Qt.Key.Key_Escape:
-            self.recording = False
-            return
-            
-        if key in (Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt, Qt.Key.Key_Meta):
-            return
-            
-        # Create key sequence
-        sequence = QKeySequence(modifiers | key)
-        self.setText(sequence.toString())
-        self.recording = False
-        self.clearFocus()
-        
-    def mousePressEvent(self, event):
-        self.recording = True
-        self.setText("Press shortcut keys...")
-        
-    def focusOutEvent(self, event):
-        super().focusOutEvent(event)
-        self.recording = False
 
 class SettingsWindow(QWidget):
     initialization_complete = pyqtSignal()
-    shortcuts_changed = pyqtSignal(str, str)  # start_key, stop_key
 
     def __init__(self):
         super().__init__()
@@ -110,20 +75,15 @@ class SettingsWindow(QWidget):
         
         # Add shortcuts group
         shortcuts_group = QGroupBox("Keyboard Shortcuts")
-        shortcuts_layout = QFormLayout()
-        
-        self.start_shortcut = ShortcutEdit()
-        self.start_shortcut.setText(self.settings.get('start_shortcut', 'ctrl+alt+r'))
-        self.stop_shortcut = ShortcutEdit()
-        self.stop_shortcut.setText(self.settings.get('stop_shortcut', 'ctrl+alt+s'))
-        
-        shortcuts_layout.addRow("Start Recording:", self.start_shortcut)
-        shortcuts_layout.addRow("Stop Recording:", self.stop_shortcut)
-        
-        apply_btn = QPushButton("Apply Shortcuts")
-        apply_btn.clicked.connect(self.apply_shortcuts)
-        shortcuts_layout.addRow(apply_btn)
-        
+        shortcuts_layout = QVBoxLayout()
+
+        shortcuts_label = QLabel("Shortcuts are managed by the system.\nClick below to configure them.")
+        shortcuts_layout.addWidget(shortcuts_label)
+
+        open_shortcuts_btn = QPushButton("Open System Shortcuts Settings")
+        open_shortcuts_btn.clicked.connect(self.open_system_shortcuts)
+        shortcuts_layout.addWidget(open_shortcuts_btn)
+
         shortcuts_group.setLayout(shortcuts_layout)
         layout.addWidget(shortcuts_group)
         
@@ -184,28 +144,16 @@ class SettingsWindow(QWidget):
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(0)
 
-    def apply_shortcuts(self):
+    def open_system_shortcuts(self):
+        """Open KDE System Settings to the shortcuts page"""
         try:
-            start_key = self.start_shortcut.text()
-            stop_key = self.stop_shortcut.text()
-            
-            if not start_key or not stop_key:
-                QMessageBox.warning(self, "Invalid Shortcuts", 
-                    "Please set both start and stop shortcuts.")
-                return
-            
-            if start_key == stop_key:
-                QMessageBox.warning(self, "Invalid Shortcuts", 
-                    "Start and stop shortcuts must be different.")
-                return
-            
-            # Save shortcuts to settings
-            self.settings.set('start_shortcut', start_key)
-            self.settings.set('stop_shortcut', stop_key)
-            
-            self.shortcuts_changed.emit(start_key, stop_key)
-            
-        except Exception as e:
-            logger.error(f"Error applying shortcuts: {e}")
-            QMessageBox.critical(self, "Error", 
-                "Failed to apply shortcuts. Please try different combinations.") 
+            # Try KDE 6 first, then KDE 5
+            subprocess.Popen(['systemsettings', 'kcm_keys'], start_new_session=True)
+        except FileNotFoundError:
+            try:
+                subprocess.Popen(['systemsettings5', 'kcm_keys'], start_new_session=True)
+            except FileNotFoundError:
+                QMessageBox.information(self, "Shortcuts",
+                    "Could not open System Settings.\n\n"
+                    "Please open System Settings manually and navigate to:\n"
+                    "Shortcuts → Shortcuts → Telly Spelly") 

@@ -196,19 +196,11 @@ class TrayRecorder(QSystemTrayIcon):
     def toggle_settings(self):
         if not self.settings_window:
             self.settings_window = SettingsWindow()
-            self.settings_window.shortcuts_changed.connect(self.update_shortcuts)
-        
+
         if self.settings_window.isVisible():
             self.settings_window.hide()
         else:
             self.settings_window.show()
-            
-    def update_shortcuts(self, start_key, stop_key):
-        """Update global shortcuts"""
-        if self.shortcuts.setup_shortcuts(start_key, stop_key):
-            self.showMessage("Shortcuts Updated", 
-                           f"Start: {start_key}\nStop: {stop_key}",
-                           self.normal_icon)
 
     def on_activate(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:  # Left click
