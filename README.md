@@ -63,8 +63,8 @@ Right-click the tray icon → **Settings**:
 
 - **Desktop:** KDE Plasma 5/6 or XFCE4
 - **Python:** 3.9 or newer
-- **Storage:** ~2GB for Whisper model
-- **GPU:** NVIDIA recommended (CPU also works)
+- **Storage:** ~8GB (7GB for PyTorch/CUDA, 1GB for Whisper models)
+- **GPU:** NVIDIA recommended (CPU also works, but uses less disk space without CUDA)
 
 ## Troubleshooting
 
