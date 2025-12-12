@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox,
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 import logging
 import subprocess
-from settings import Settings
+from .settings import Settings
 
 logger = logging.getLogger(__name__)
 

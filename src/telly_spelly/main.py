@@ -9,17 +9,17 @@ from PyQt6.QtWidgets import (QApplication, QMessageBox, QSystemTrayIcon, QMenu)
 from PyQt6.QtCore import Qt, QTimer, QCoreApplication
 from PyQt6.QtGui import QIcon, QAction
 import logging
-from settings_window import SettingsWindow
-from progress_window import ProgressWindow
-from processing_window import ProcessingWindow
-from recorder import AudioRecorder
-from transcriber import WhisperTranscriber
+from .settings_window import SettingsWindow
+from .progress_window import ProgressWindow
+from .processing_window import ProcessingWindow
+from .recorder import AudioRecorder
+from .transcriber import WhisperTranscriber
 from PyQt6.QtCore import pyqtSignal
 import warnings
 import ctypes
 import os
-from shortcuts import GlobalShortcuts
-from settings import Settings
+from .shortcuts import GlobalShortcuts
+from .settings import Settings
 # from mic_debug import MicDebugWindow
 
 # Setup logging

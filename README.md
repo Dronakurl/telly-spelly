@@ -4,47 +4,69 @@ Voice-to-text transcription for KDE Plasma using OpenAI's Whisper.
 
 Press a keyboard shortcut, speak, press again - your words are transcribed and copied to the clipboard.
 
-## Quick Install
+## Installation
 
-### Step 1: Install System Dependencies
+### Option 1: Install with uv (Recommended)
+
+If you have [uv](https://github.com/astral-sh/uv) installed:
+
+```bash
+# Install system dependencies first (Ubuntu/Debian)
+sudo apt install portaudio19-dev libdbus-1-dev libglib2.0-dev
+
+# Run directly with uvx
+uvx telly-spelly
+
+# Or install globally
+uv tool install telly-spelly
+```
+
+### Option 2: Install with pip
+
+```bash
+# Install system dependencies first (Ubuntu/Debian)
+sudo apt install portaudio19-dev libdbus-1-dev libglib2.0-dev
+
+# Install from PyPI
+pip install telly-spelly
+
+# Run
+telly-spelly
+```
+
+### Option 3: One-line installer script
+
+This installs to `~/.local/share/telly-spelly` with full desktop integration:
+
+```bash
+# Install system dependencies first
+sudo apt install python3 python3-pip python3-venv git pkg-config portaudio19-dev libdbus-1-dev libglib2.0-dev
+
+# Run installer
+curl -sSL https://raw.githubusercontent.com/Dronakurl/telly-spelly/main/get-telly-spelly.sh | bash
+```
+
+### System Dependencies by Distro
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install python3 python3-pip python3-venv git pkg-config portaudio19-dev libdbus-1-dev libglib2.0-dev
+sudo apt install portaudio19-dev libdbus-1-dev libglib2.0-dev
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install python3 python3-pip python3-devel git pkg-config portaudio-devel dbus-devel glib2-devel
+sudo dnf install portaudio-devel dbus-devel glib2-devel
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S python python-pip git pkg-config portaudio dbus glib2
+sudo pacman -S portaudio dbus glib2
 ```
 
-### Step 2: Run the Installer
+### After Installation
 
-```bash
-curl -sSL https://raw.githubusercontent.com/Dronakurl/telly-spelly/main/get-telly-spelly.sh | bash
-```
-
-Or with wget:
-```bash
-wget -qO- https://raw.githubusercontent.com/Dronakurl/telly-spelly/main/get-telly-spelly.sh | bash
-```
-
-The installer will:
-- Download Telly Spelly to `~/.local/share/telly-spelly`
-- Create a Python virtual environment
-- Install all Python dependencies (including Whisper)
-- Add a desktop entry to your application menu
-- Register keyboard shortcuts
-
-### Step 3: Launch
-
-- Open **Telly Spelly** from your application menu, or
-- Log out and back in, then use **Ctrl+Alt+R** to toggle recording
+- Launch **Telly Spelly** from your application menu, or run `telly-spelly`
+- Use **Ctrl+Alt+R** to toggle recording (configure in System Settings → Shortcuts)
 
 ## Usage
 

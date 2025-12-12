@@ -3,7 +3,7 @@ import whisper
 import os
 import logging
 import time
-from settings import Settings
+from .settings import Settings
 logger = logging.getLogger(__name__)
 
 class TranscriptionWorker(QThread):
