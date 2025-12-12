@@ -1,6 +1,4 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from PyQt6.QtGui import QKeySequence
-from PyQt6.QtWidgets import QApplication
 import logging
 import dbus
 import dbus.service
@@ -10,6 +8,8 @@ logger = logging.getLogger(__name__)
 DBUS_SERVICE = "org.kde.telly_spelly"
 DBUS_PATH = "/TellySpelly"
 DBUS_INTERFACE = "org.kde.telly_spelly"
+# Use the desktop file name for KDE shortcut integration
+DESKTOP_FILE = "telly-spelly.desktop"
 
 
 class DBusService(dbus.service.Object):
@@ -45,8 +45,8 @@ class GlobalShortcuts(QObject):
     """
     Global Shortcuts integration via D-Bus and KGlobalAccel.
 
-    We register our D-Bus service to receive triggers, then use KGlobalAccel
-    to register the actual keyboard shortcut that will call our D-Bus method.
+    We expose a D-Bus service that gets called by KDE when the shortcut
+    is pressed. The desktop file action defines the dbus-send command.
     """
 
     start_recording_triggered = pyqtSignal()
@@ -68,7 +68,7 @@ class GlobalShortcuts(QObject):
             # Request the service name (must keep reference!)
             self.bus_name = dbus.service.BusName(DBUS_SERVICE, self.session_bus)
 
-            # Create the service object
+            # Create the service object for external D-Bus calls
             self.dbus_service = DBusService(self.bus_name, DBUS_PATH, self)
 
             self.registered = True
@@ -94,32 +94,38 @@ class GlobalShortcuts(QObject):
             )
             iface = dbus.Interface(kglobalaccel, 'org.kde.KGlobalAccel')
 
-            # Action ID format: [component, context, action, friendly_name]
+            # Action ID for desktop file action
             action_id = dbus.Array([
-                dbus.String("telly-spelly.desktop"),
+                dbus.String(DESKTOP_FILE),
                 dbus.String(""),
                 dbus.String("ToggleRecording"),
                 dbus.String("Toggle Recording")
             ], signature='s')
 
-            # Register the action first
+            # Register the action
             iface.doRegister(action_id)
 
             # Ctrl+Alt+R key code: Ctrl=0x04000000, Alt=0x08000000, R=0x52
-            # Combined: 0x0C000052 = 201326674
             key_code = 0x04000000 | 0x08000000 | ord('R')
-
-            # Set the shortcut (flags=0 means don't overwrite if already set by user)
             keys = dbus.Array([dbus.Int32(key_code)], signature='i')
-            iface.setShortcut(action_id, keys, dbus.UInt32(0))
 
-            logger.info("Registered Ctrl+Alt+R shortcut with KGlobalAccel")
+            # Use setForeignShortcut to set the shortcut for the desktop action
+            iface.setForeignShortcut(action_id, keys)
+
+            # Verify
+            result = iface.shortcut(action_id)
+            if result and len(result) > 0 and result[0] == key_code:
+                logger.info("Registered Ctrl+Alt+R shortcut with KGlobalAccel")
+            else:
+                logger.warning(f"Shortcut may not have been set correctly: {result}")
 
         except dbus.DBusException as e:
             logger.warning(f"Could not register with KGlobalAccel: {e}")
             logger.info("Shortcut can be configured manually in System Settings -> Shortcuts")
         except Exception as e:
             logger.warning(f"KGlobalAccel registration error: {e}")
+            import traceback
+            traceback.print_exc()
 
     def remove_shortcuts(self):
         """Cleanup"""
