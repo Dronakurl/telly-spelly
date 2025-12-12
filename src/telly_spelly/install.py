@@ -107,28 +107,45 @@ def install_kde_shortcuts_silent():
     shortcut_file = shortcuts_dir / "telly-spelly.desktop"
     shortcut_file.write_text(SHORTCUT_ENTRY)
 
-    kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
-
-    shortcut_config = """
+    # Use kwriteconfig to set shortcut (works on both KDE 5 and 6)
+    kwriteconfig = "kwriteconfig6" if shutil.which("kwriteconfig6") else "kwriteconfig5"
+    try:
+        subprocess.run([
+            kwriteconfig, "--file", "kglobalshortcutsrc",
+            "--group", "telly-spelly.desktop",
+            "--key", "ToggleRecording",
+            "Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording"
+        ], capture_output=True)
+        subprocess.run([
+            kwriteconfig, "--file", "kglobalshortcutsrc",
+            "--group", "telly-spelly.desktop",
+            "--key", "_k_friendly_name",
+            "Telly Spelly"
+        ], capture_output=True)
+    except FileNotFoundError:
+        # Fallback: write directly to config file
+        kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
+        shortcut_config = """
 [telly-spelly.desktop]
 ToggleRecording=Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording
 _k_friendly_name=Telly Spelly
 """
+        if kglobal_rc.exists():
+            content = kglobal_rc.read_text()
+            if "[telly-spelly.desktop]" not in content:
+                with open(kglobal_rc, "a") as f:
+                    f.write(shortcut_config)
+        else:
+            kglobal_rc.write_text(shortcut_config.strip() + "\n")
 
-    if kglobal_rc.exists():
-        content = kglobal_rc.read_text()
-        if "[telly-spelly.desktop]" not in content:
-            with open(kglobal_rc, "a") as f:
-                f.write(shortcut_config)
-    else:
-        kglobal_rc.write_text(shortcut_config.strip() + "\n")
-
+    # Reload kglobalaccel to pick up new shortcuts
     try:
-        subprocess.run(
-            ["dbus-send", "--session", "--type=signal", "/kglobalaccel",
-             "org.kde.kglobalaccel.reloadConfig"],
-            capture_output=True
-        )
+        # Try kquitapp + kstart to restart kglobalaccel (most reliable)
+        kquitapp = "kquitapp6" if shutil.which("kquitapp6") else "kquitapp5"
+        kstart = "kstart6" if shutil.which("kstart6") else "kstart5"
+        subprocess.run([kquitapp, "kglobalaccel"], capture_output=True, timeout=5)
+        subprocess.run([kstart, "kglobalaccel6" if "6" in kstart else "kglobalaccel5"],
+                      capture_output=True, timeout=5)
     except Exception:
         pass
 
@@ -193,35 +210,49 @@ def install_kde_shortcuts():
     shortcut_file = shortcuts_dir / "telly-spelly.desktop"
     shortcut_file.write_text(SHORTCUT_ENTRY)
 
-    # Add to kglobalshortcutsrc
-    kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
-
-    shortcut_config = """
+    # Use kwriteconfig to set shortcut (works on both KDE 5 and 6)
+    kwriteconfig = "kwriteconfig6" if shutil.which("kwriteconfig6") else "kwriteconfig5"
+    try:
+        subprocess.run([
+            kwriteconfig, "--file", "kglobalshortcutsrc",
+            "--group", "telly-spelly.desktop",
+            "--key", "ToggleRecording",
+            "Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording"
+        ], capture_output=True)
+        subprocess.run([
+            kwriteconfig, "--file", "kglobalshortcutsrc",
+            "--group", "telly-spelly.desktop",
+            "--key", "_k_friendly_name",
+            "Telly Spelly"
+        ], capture_output=True)
+        print("✓ KDE shortcut Ctrl+Alt+R configured")
+    except FileNotFoundError:
+        # Fallback: write directly to config file
+        kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
+        shortcut_config = """
 [telly-spelly.desktop]
 ToggleRecording=Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording
 _k_friendly_name=Telly Spelly
 """
-
-    # Check if already configured
-    if kglobal_rc.exists():
-        content = kglobal_rc.read_text()
-        if "[telly-spelly.desktop]" not in content:
-            with open(kglobal_rc, "a") as f:
-                f.write(shortcut_config)
-            print("✓ KDE shortcut Ctrl+Alt+R configured")
+        if kglobal_rc.exists():
+            content = kglobal_rc.read_text()
+            if "[telly-spelly.desktop]" not in content:
+                with open(kglobal_rc, "a") as f:
+                    f.write(shortcut_config)
+                print("✓ KDE shortcut Ctrl+Alt+R configured")
+            else:
+                print("✓ KDE shortcut already configured")
         else:
-            print("✓ KDE shortcut already configured")
-    else:
-        kglobal_rc.write_text(shortcut_config.strip() + "\n")
-        print("✓ KDE shortcut Ctrl+Alt+R configured")
+            kglobal_rc.write_text(shortcut_config.strip() + "\n")
+            print("✓ KDE shortcut Ctrl+Alt+R configured")
 
-    # Reload KDE shortcuts
+    # Reload kglobalaccel to pick up new shortcuts
     try:
-        subprocess.run(
-            ["dbus-send", "--session", "--type=signal", "/kglobalaccel",
-             "org.kde.kglobalaccel.reloadConfig"],
-            capture_output=True
-        )
+        kquitapp = "kquitapp6" if shutil.which("kquitapp6") else "kquitapp5"
+        kstart = "kstart6" if shutil.which("kstart6") else "kstart5"
+        subprocess.run([kquitapp, "kglobalaccel"], capture_output=True, timeout=5)
+        subprocess.run([kstart, "kglobalaccel6" if "6" in kstart else "kglobalaccel5"],
+                      capture_output=True, timeout=5)
     except Exception:
         pass
 
