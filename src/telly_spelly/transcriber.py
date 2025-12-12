@@ -10,25 +10,26 @@ class TranscriptionWorker(QThread):
     finished = pyqtSignal(str)
     progress = pyqtSignal(str)
     error = pyqtSignal(str)
-    
-    def __init__(self, model, audio_file):
+
+    def __init__(self, model, audio_file, language=None):
         super().__init__()
         self.model = model
         self.audio_file = audio_file
-        
+        self.language = language
+
     def run(self):
         try:
             if not os.path.exists(self.audio_file):
                 raise FileNotFoundError(f"Audio file not found: {self.audio_file}")
-                
+
             self.progress.emit("Loading audio file...")
-            
+
             # Load and transcribe
             self.progress.emit("Processing audio with Whisper...")
             result = self.model.transcribe(
                 self.audio_file,
                 fp16=False,
-                language='en'
+                language=self.language
             )
             
             text = result["text"].strip()
@@ -127,11 +128,16 @@ class WhisperTranscriber(QObject):
         if self.worker and self.worker.isRunning():
             logger.warning("Transcription already in progress")
             return
-            
+
+        # Get language setting
+        settings = Settings()
+        language = settings.get('language', 'auto')
+        lang = None if language == 'auto' else language
+
         # Emit initial progress status before starting worker
         self.transcription_progress.emit("Starting transcription...")
-            
-        self.worker = TranscriptionWorker(self.model, audio_file)
+
+        self.worker = TranscriptionWorker(self.model, audio_file, lang)
         self.worker.finished.connect(self.transcription_finished)
         self.worker.progress.connect(self.transcription_progress)
         self.worker.error.connect(self.transcription_error)
