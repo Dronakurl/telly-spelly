@@ -336,8 +336,16 @@ def main():
 
         # Check if already running
         if check_already_running():
-            QMessageBox.information(None, "Telly Spelly",
-                "Telly Spelly is already running.\nCheck your system tray.")
+            # Send notification via D-Bus
+            try:
+                import dbus
+                bus = dbus.SessionBus()
+                notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
+                iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
+                iface.Notify('Telly Spelly', 0, 'telly-spelly', 'Telly Spelly',
+                           'Already running. Check your system tray.', [], {}, 3000)
+            except Exception:
+                pass  # Silently fail if notification fails
             return 0
 
         # Show loading window first
