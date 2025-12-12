@@ -14,7 +14,6 @@ from progress_window import ProgressWindow
 from processing_window import ProcessingWindow
 from recorder import AudioRecorder
 from transcriber import WhisperTranscriber
-from loading_window import LoadingWindow
 from PyQt6.QtCore import pyqtSignal
 import warnings
 import ctypes
@@ -327,6 +326,29 @@ def check_already_running():
     except Exception:
         return False
 
+def send_notification(title, message, timeout_ms=20000):
+    """Send a desktop notification via D-Bus"""
+    try:
+        import dbus
+        bus = dbus.SessionBus()
+        notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
+        iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
+        return iface.Notify('Telly Spelly', 0, 'telly-spelly', title, message, [], {}, timeout_ms)
+    except Exception as e:
+        logger.warning(f"Could not send notification: {e}")
+        return 0
+
+def close_notification(notification_id):
+    """Close a notification by ID"""
+    try:
+        import dbus
+        bus = dbus.SessionBus()
+        notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
+        iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
+        iface.CloseNotification(notification_id)
+    except Exception:
+        pass
+
 def main():
     try:
         app = QApplication(sys.argv)
@@ -334,48 +356,36 @@ def main():
 
         # Check if already running
         if check_already_running():
-            # Send notification via D-Bus
-            try:
-                import dbus
-                bus = dbus.SessionBus()
-                notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
-                iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
-                iface.Notify('Telly Spelly', 0, 'telly-spelly', 'Telly Spelly',
-                           'Already running. Check your system tray.', [], {}, 3000)
-            except Exception:
-                pass  # Silently fail if notification fails
+            send_notification('Telly Spelly', 'Already running. Check your system tray.', 3000)
             return 0
 
-        # Show loading window first
-        loading_window = LoadingWindow()
-        loading_window.show()
-        app.processEvents()  # Force update of UI
-        loading_window.set_status("Checking system requirements...")
-        app.processEvents()  # Force update of UI
-        
+        # Send startup notification (20 seconds)
+        startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 20000)
+
         # Check if system tray is available
         if not TrayRecorder.isSystemTrayAvailable():
-            QMessageBox.critical(None, "Error", 
-                "System tray is not available. Please ensure your desktop environment supports system tray icons.")
+            close_notification(startup_notification_id)
+            send_notification('Telly Spelly', 'Error: System tray not available.', 5000)
             return 1
-        
+
         # Create tray icon but don't initialize yet
         tray = TrayRecorder()
-        
-        # Connect loading window to tray initialization
-        tray.initialization_complete.connect(loading_window.close)
-        
-        # Check dependencies in background
-        loading_window.set_status("Checking dependencies...")
-        app.processEvents()  # Force update of UI
+
+        # Close startup notification when initialization completes
+        tray.initialization_complete.connect(lambda: close_notification(startup_notification_id))
+        tray.initialization_complete.connect(
+            lambda: send_notification('Telly Spelly', 'Ready! Use Ctrl+Alt+R to toggle recording.', 5000))
+
+        # Check dependencies
         if not check_dependencies():
+            close_notification(startup_notification_id)
             return 1
-        
+
         # Ensure the application doesn't quit when last window is closed
         app.setQuitOnLastWindowClosed(False)
-        
+
         # Initialize tray in background
-        QTimer.singleShot(100, lambda: initialize_tray(tray, loading_window, app))
+        QTimer.singleShot(100, lambda: initialize_tray(tray, startup_notification_id, app))
         
         return app.exec()
         
@@ -385,46 +395,36 @@ def main():
             f"Failed to start application: {str(e)}")
         return 1
 
-def initialize_tray(tray, loading_window, app):
+def initialize_tray(tray, startup_notification_id, app):
     try:
         # Initialize basic tray setup
-        loading_window.set_status("Initializing application...")
-        app.processEvents()
         tray.initialize()
-        
+
         # Initialize recorder
-        loading_window.set_status("Initializing audio system...")
-        app.processEvents()
         tray.recorder = AudioRecorder()
-        
+
         # Initialize transcriber
-        loading_window.set_status("Loading Whisper model...")
-        app.processEvents()
         tray.transcriber = WhisperTranscriber()
-        
+
         # Connect signals
-        loading_window.set_status("Setting up signal handlers...")
-        app.processEvents()
         tray.recorder.volume_updated.connect(tray.update_volume_meter)
         tray.recorder.recording_finished.connect(tray.handle_recording_finished)
         tray.recorder.recording_error.connect(tray.handle_recording_error)
-        
+
         tray.transcriber.transcription_progress.connect(tray.update_processing_status)
         tray.transcriber.transcription_finished.connect(tray.handle_transcription_finished)
         tray.transcriber.transcription_error.connect(tray.handle_transcription_error)
-        
+
         # Make tray visible
-        loading_window.set_status("Starting application...")
-        app.processEvents()
         tray.setVisible(True)
-        
+
         # Signal completion
         tray.initialization_complete.emit()
-        
+
     except Exception as e:
         logger.error(f"Initialization failed: {e}")
-        QMessageBox.critical(None, "Error", f"Failed to initialize application: {str(e)}")
-        loading_window.close()
+        close_notification(startup_notification_id)
+        send_notification('Telly Spelly', f'Failed to start: {str(e)}', 10000)
 
 if __name__ == "__main__":
     sys.exit(main()) 
