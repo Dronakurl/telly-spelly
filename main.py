@@ -40,7 +40,7 @@ except:
     warnings.warn("Failed to suppress ALSA warnings", RuntimeWarning)
 
 def check_dependencies():
-    required_packages = ['whisper', 'pyaudio', 'keyboard']
+    required_packages = ['whisper', 'pyaudio']
     missing_packages = []
     
     for package in required_packages:
@@ -89,6 +89,7 @@ class TrayRecorder(QSystemTrayIcon):
         self.shortcuts = GlobalShortcuts()
         self.shortcuts.start_recording_triggered.connect(self.start_recording)
         self.shortcuts.stop_recording_triggered.connect(self.stop_recording)
+        self.shortcuts.toggle_recording_triggered.connect(self.toggle_recording)
 
     def initialize(self):
         """Initialize the tray recorder after showing loading window"""
@@ -185,9 +186,10 @@ class TrayRecorder(QSystemTrayIcon):
 
     def stop_recording(self):
         """Handle stopping the recording and starting processing"""
+        logger.info(f"TrayRecorder: stop_recording called, recording={self.recording}")
         if not self.recording:
             return
-        
+
         logger.info("TrayRecorder: Stopping recording")
         self.toggle_recording()  # This is now safe since toggle_recording handles everything
 
@@ -293,12 +295,8 @@ class TrayRecorder(QSystemTrayIcon):
 
     def start_recording(self):
         """Start a new recording"""
+        logger.info("TrayRecorder: start_recording called")
         if not self.recording:
-            self.toggle_recording()
-            
-    def stop_recording(self):
-        """Stop current recording"""
-        if self.recording:
             self.toggle_recording()
 
     def toggle_debug_window(self):
