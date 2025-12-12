@@ -368,8 +368,8 @@ def main():
             send_notification('Telly Spelly', 'Already running. Check your system tray.', 3000)
             return 0
 
-        # Send startup notification (20 seconds)
-        startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 20000)
+        # Send startup notification (0 = no expiry, will be replaced when ready)
+        startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 0)
 
         # Check if system tray is available
         if not TrayRecorder.isSystemTrayAvailable():
