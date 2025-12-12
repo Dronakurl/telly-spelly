@@ -164,92 +164,39 @@ EOF
     echo -e "${GREEN}Desktop entry installed!${NC}"
 }
 
-# Register KDE global shortcuts
-register_kde_shortcuts() {
+# Register XFCE4 global shortcuts
+register_xfce_shortcuts() {
     echo
-    echo -e "${YELLOW}Registering KDE global shortcuts...${NC}"
+    echo -e "${YELLOW}Registering XFCE4 keyboard shortcuts...${NC}"
 
-    local shortcuts_file="$HOME/.config/kglobalshortcutsrc"
-    local toggle_cmd="dbus-send --session --type=method_call --dest=org.kde.telly_spelly /TellySpelly org.kde.telly_spelly.ToggleRecording"
-    local start_cmd="dbus-send --session --type=method_call --dest=org.kde.telly_spelly /TellySpelly org.kde.telly_spelly.StartRecording"
-    local stop_cmd="dbus-send --session --type=method_call --dest=org.kde.telly_spelly /TellySpelly org.kde.telly_spelly.StopRecording"
+    local toggle_cmd="dbus-send --session --type=method_call --dest=org.freedesktop.telly_spelly /TellySpelly org.freedesktop.telly_spelly.ToggleRecording"
 
-    # Check if kwriteconfig5 or kwriteconfig6 is available
-    local kwriteconfig=""
-    if command -v kwriteconfig6 &> /dev/null; then
-        kwriteconfig="kwriteconfig6"
-    elif command -v kwriteconfig5 &> /dev/null; then
-        kwriteconfig="kwriteconfig5"
-    else
-        echo -e "  ${YELLOW}!${NC} kwriteconfig not found, skipping automatic shortcut registration"
-        echo -e "  ${YELLOW}!${NC} You can manually add shortcuts in System Settings → Shortcuts"
+    # Check if xfconf-query is available
+    if ! command -v xfconf-query &> /dev/null; then
+        echo -e "  ${YELLOW}!${NC} xfconf-query not found, skipping automatic shortcut registration"
+        echo -e "  ${YELLOW}!${NC} You can manually add shortcuts in Settings → Keyboard → Application Shortcuts"
+        echo -e "  ${YELLOW}→${NC} Command: $toggle_cmd"
+        echo -e "  ${YELLOW}→${NC} Shortcut: Ctrl+Alt+R"
         return
     fi
 
-    # Add telly-spelly section to kglobalshortcutsrc
-    # Format: action=shortcut,default_shortcut,friendly_name
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "_k_friendly_name" "Telly Spelly"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "ToggleRecording" "Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "StartRecording" ",none,Start Recording"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "StopRecording" "Ctrl+Alt+S,Ctrl+Alt+S,Stop Recording"
+    # Register shortcut with XFCE4
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "/commands/custom/<Primary><Alt>r" \
+        -n -t string -s "$toggle_cmd" 2>/dev/null || \
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "/commands/custom/<Primary><Alt>r" \
+        -s "$toggle_cmd" 2>/dev/null
 
-    # Create custom shortcuts using khotkeys (KDE's custom shortcut system)
-    local khotkeys_file="$HOME/.config/khotkeysrc"
-
-    # Get next available data group number
-    local next_num=1
-    if [ -f "$khotkeys_file" ]; then
-        next_num=$(grep -oP 'Data_\K\d+' "$khotkeys_file" 2>/dev/null | sort -n | tail -1)
-        next_num=$((next_num + 1))
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}XFCE4 shortcuts registered!${NC}"
+        echo -e "  ${GREEN}✓${NC} Ctrl+Alt+R: Toggle Recording"
+    else
+        echo -e "  ${YELLOW}!${NC} Could not register shortcut automatically"
+        echo -e "  ${YELLOW}→${NC} Please add manually in Settings → Keyboard → Application Shortcuts"
+        echo -e "  ${YELLOW}→${NC} Command: $toggle_cmd"
+        echo -e "  ${YELLOW}→${NC} Shortcut: Ctrl+Alt+R"
     fi
-
-    # Add custom shortcut for Toggle Recording
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}" --key "Comment" "Toggle Telly Spelly Recording"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}" --key "Enabled" "true"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}" --key "Name" "Telly Spelly Toggle"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}" --key "Type" "SIMPLE_ACTION_DATA"
-
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Actions" --key "ActionsCount" "1"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Actions0" --key "CommandURL" "$toggle_cmd"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Actions0" --key "Type" "COMMAND_URL"
-
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Conditions" --key "Comment" ""
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Conditions" --key "ConditionsCount" "0"
-
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Triggers" --key "Comment" "Simple_action"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Triggers" --key "TriggersCount" "1"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Triggers0" --key "Key" "Ctrl+Alt+R"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Triggers0" --key "Type" "SHORTCUT"
-    $kwriteconfig --file "$khotkeys_file" --group "Data_${next_num}Triggers0" --key "Uuid" "{$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)}"
-
-    # Update Data count in Main group (use kreadconfig to read)
-    local kreadconfig=""
-    if command -v kreadconfig6 &> /dev/null; then
-        kreadconfig="kreadconfig6"
-    elif command -v kreadconfig5 &> /dev/null; then
-        kreadconfig="kreadconfig5"
-    fi
-
-    local current_count="0"
-    if [ -n "$kreadconfig" ]; then
-        current_count=$($kreadconfig --file "$khotkeys_file" --group "Main" --key "DataCount" 2>/dev/null || echo "0")
-    fi
-    # Handle empty or non-numeric values
-    if ! [[ "$current_count" =~ ^[0-9]+$ ]]; then
-        current_count=0
-    fi
-    $kwriteconfig --file "$khotkeys_file" --group "Main" --key "DataCount" "$((current_count + 1))"
-
-    # Reload khotkeys
-    if command -v qdbus &> /dev/null; then
-        qdbus org.kde.kglobalaccel /kglobalaccel reloadConfig 2>/dev/null || true
-        qdbus org.kde.kded5 /modules/khotkeys reread_configuration 2>/dev/null || true
-        qdbus org.kde.kded6 /modules/khotkeys reread_configuration 2>/dev/null || true
-    fi
-
-    echo -e "${GREEN}KDE shortcuts registered!${NC}"
-    echo -e "  ${GREEN}✓${NC} Ctrl+Alt+R: Toggle Recording"
-    echo -e "  ${GREEN}✓${NC} Ctrl+Alt+S: Stop Recording"
 }
 
 # Print success message
@@ -310,7 +257,7 @@ main() {
     install_python_deps
     install_icon
     install_desktop_entry
-    register_kde_shortcuts
+    register_xfce_shortcuts
     print_success
 }
 

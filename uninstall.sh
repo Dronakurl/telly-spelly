@@ -33,16 +33,14 @@ rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/telly-spelly.svg"
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Icon removed"
 
-# Remove KDE shortcuts
-echo -e "${YELLOW}Removing KDE shortcuts...${NC}"
-if command -v kwriteconfig6 &> /dev/null; then
-    kwriteconfig6 --file "$HOME/.config/kglobalshortcutsrc" --group "telly-spelly.desktop" --delete-group 2>/dev/null || true
-    echo -e "  ${GREEN}✓${NC} Shortcuts removed"
-elif command -v kwriteconfig5 &> /dev/null; then
-    kwriteconfig5 --file "$HOME/.config/kglobalshortcutsrc" --group "telly-spelly.desktop" --delete-group 2>/dev/null || true
+# Remove XFCE4 shortcuts
+echo -e "${YELLOW}Removing XFCE4 shortcuts...${NC}"
+if command -v xfconf-query &> /dev/null; then
+    xfconf-query -c xfce4-keyboard-shortcuts -p "/commands/custom/<Primary><Alt>r" -r 2>/dev/null || true
     echo -e "  ${GREEN}✓${NC} Shortcuts removed"
 else
-    echo -e "  ${YELLOW}!${NC} kwriteconfig not found, shortcuts may need manual removal"
+    echo -e "  ${YELLOW}!${NC} xfconf-query not found, shortcuts may need manual removal"
+    echo -e "  ${YELLOW}→${NC} Remove manually from Settings → Keyboard → Application Shortcuts"
 fi
 
 # Remove virtual environment
