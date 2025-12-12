@@ -13,11 +13,6 @@ Press a keyboard shortcut, speak, press again - your words are transcribed and c
 sudo apt install portaudio19-dev libdbus-1-dev
 ```
 
-**Fedora:**
-```bash
-sudo dnf install portaudio-devel dbus-devel
-```
-
 **Arch Linux:**
 ```bash
 sudo pacman -S portaudio dbus
