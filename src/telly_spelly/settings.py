@@ -96,3 +96,12 @@ class Settings:
         """Mark that hardware detection has been performed"""
         self.settings.setValue('hardware_detected', detected)
         self.settings.sync()
+
+    def get_force_cpu(self):
+        """Check if GPU should be disabled (force CPU mode)"""
+        return self.settings.value('force_cpu', False, type=bool)
+
+    def set_force_cpu(self, force_cpu):
+        """Set whether to force CPU-only mode"""
+        self.settings.setValue('force_cpu', force_cpu)
+        self.settings.sync()

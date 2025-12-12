@@ -374,20 +374,39 @@ def main():
         if install_silent():
             logger.info("Desktop integration installed automatically")
 
-        # Detect GPU and configure available models on first run
+        # Detect GPU and configure available models on every start
         settings = Settings()
-        if not settings.is_hardware_detected():
-            logger.info("First run: detecting hardware...")
+        force_cpu = settings.get_force_cpu()
+
+        # Always check GPU availability (it may have changed since last run)
+        if force_cpu:
+            config = gpu.detect_and_configure(force_cpu=True)
+        else:
             config = gpu.detect_and_configure()
-            settings.set_gpu_memory(config['gpu_memory_gb'])
-            settings.set_available_models(config['available_models'])
-            # Set default model if not already set
-            current_model = settings.get('model', None)
-            if current_model is None or current_model not in config['available_models']:
-                settings.set('model', config['default_model'])
-                logger.info(f"Default model set to: {config['default_model']}")
-            settings.set_hardware_detected(True)
-            logger.info(f"Hardware detection complete. GPU: {config['gpu_memory_gb']}GB, Models: {config['available_models']}")
+
+        # Check if hardware situation changed
+        previous_gpu_memory = settings.get_gpu_memory()
+        current_gpu_memory = config['gpu_memory_gb']
+
+        # GPU became unavailable (was available, now not)
+        if previous_gpu_memory is not None and current_gpu_memory is None and not force_cpu:
+            logger.warning("GPU no longer available, switching to CPU mode")
+        # GPU became available (was not available, now is)
+        elif previous_gpu_memory is None and current_gpu_memory is not None and not force_cpu:
+            logger.info(f"GPU now available: {current_gpu_memory:.1f}GB VRAM")
+
+        # Update settings
+        settings.set_gpu_memory(config['gpu_memory_gb'])
+        settings.set_available_models(config['available_models'])
+
+        # Adjust model if current one is no longer available
+        current_model = settings.get('model', None)
+        if current_model is None or current_model not in config['available_models']:
+            settings.set('model', config['default_model'])
+            logger.info(f"Model set to: {config['default_model']}")
+
+        settings.set_hardware_detected(True)
+        logger.info(f"Hardware config: GPU={config['gpu_memory_gb']}GB, Models={config['available_models']}")
 
         # Send startup notification (0 = no expiry, will be replaced when ready)
         startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 0)

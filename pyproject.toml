@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "telly-spelly"
-version = "0.1.2"
+version = "0.1.3"
 description = "Voice-to-text transcription for KDE Plasma using OpenAI Whisper"
 readme = "README.md"
 license = "MIT"

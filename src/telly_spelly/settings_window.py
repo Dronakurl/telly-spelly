@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox,
                             QGroupBox, QFormLayout, QPushButton,
-                            QMessageBox)
+                            QMessageBox, QCheckBox)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import logging
 import subprocess
@@ -119,6 +119,12 @@ class SettingsWindow(QWidget):
         gpu_label.setWordWrap(True)
         model_layout.addRow("", gpu_label)
 
+        # Force CPU checkbox
+        self.force_cpu_checkbox = QCheckBox("Disable GPU (use CPU only)")
+        self.force_cpu_checkbox.setChecked(self.settings.get_force_cpu())
+        self.force_cpu_checkbox.stateChanged.connect(self.on_force_cpu_changed)
+        model_layout.addRow("", self.force_cpu_checkbox)
+
         self.lang_combo = QComboBox()
         # Add all supported languages
         for code, name in Settings.VALID_LANGUAGES.items():
@@ -187,6 +193,12 @@ class SettingsWindow(QWidget):
         """Set the transcriber reference for model updates"""
         self.transcriber = transcriber
         self._update_initial_status()
+
+    def on_force_cpu_changed(self, state):
+        force_cpu = state == Qt.CheckState.Checked.value
+        self.settings.set_force_cpu(force_cpu)
+        QMessageBox.information(self, "Restart Required",
+            "Please restart Telly Spelly for this change to take effect.")
 
     def on_language_changed(self, index):
         language_code = self.lang_combo.currentData()

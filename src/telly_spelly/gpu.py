@@ -96,9 +96,12 @@ def get_default_model(available_models):
     return 'tiny'
 
 
-def detect_and_configure():
+def detect_and_configure(force_cpu=False):
     """
     Detect GPU and return configuration dict.
+
+    Args:
+        force_cpu: If True, ignore GPU and configure for CPU-only mode
 
     Returns:
         dict with keys:
@@ -106,7 +109,11 @@ def detect_and_configure():
             - available_models: list of model names
             - default_model: recommended default model
     """
-    gpu_memory = get_gpu_memory_gb()
+    if force_cpu:
+        logger.info("Force CPU mode enabled, skipping GPU detection")
+        gpu_memory = None
+    else:
+        gpu_memory = get_gpu_memory_gb()
     available = get_available_models(gpu_memory)
     default = get_default_model(available)
 
