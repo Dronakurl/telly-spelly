@@ -22,12 +22,12 @@ sudo pacman -S portaudio dbus
 
 **With uv (recommended):**
 ```bash
-uv tool install telly-spelly
+uv tool install telly-spelly --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 ```
 
 **With pip:**
 ```bash
-pip install telly-spelly
+pip install telly-spelly --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 ```
 
 ### 3. Setup desktop integration
