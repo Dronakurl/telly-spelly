@@ -1,4 +1,6 @@
 from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtGui import QKeySequence
+from PyQt6.QtWidgets import QApplication
 import logging
 import dbus
 import dbus.service
@@ -41,15 +43,10 @@ class DBusService(dbus.service.Object):
 
 class GlobalShortcuts(QObject):
     """
-    Global Shortcuts integration via D-Bus.
+    Global Shortcuts integration via D-Bus and KGlobalAccel.
 
-    Shortcuts are configured via the desktop file actions in telly-spelly.desktop.
-    KDE reads these actions and allows users to assign shortcuts in System Settings.
-    When a shortcut is triggered, KDE runs the dbus-send command which calls our
-    D-Bus methods (StartRecording, StopRecording, ToggleRecording).
-
-    This approach persists shortcuts in ~/.config/kglobalshortcutsrc and doesn't
-    require user confirmation on each startup.
+    We register our D-Bus service to receive triggers, then use KGlobalAccel
+    to register the actual keyboard shortcut that will call our D-Bus method.
     """
 
     start_recording_triggered = pyqtSignal()
@@ -64,7 +61,7 @@ class GlobalShortcuts(QObject):
         self.session_bus = None
 
     def setup_shortcuts(self, start_key='Ctrl+Alt+R', stop_key='Ctrl+Alt+S'):
-        """Setup D-Bus service to receive shortcut triggers from KDE"""
+        """Setup D-Bus service and register shortcut with KGlobalAccel"""
         try:
             self.session_bus = dbus.SessionBus()
 
@@ -76,7 +73,9 @@ class GlobalShortcuts(QObject):
 
             self.registered = True
             logger.info(f"D-Bus service registered: {DBUS_SERVICE}")
-            logger.info("Shortcuts are configured via System Settings -> Shortcuts -> Telly Spelly")
+
+            # Register shortcut with KGlobalAccel
+            self._register_kglobalaccel_shortcut()
 
             return True
 
@@ -85,6 +84,42 @@ class GlobalShortcuts(QObject):
             import traceback
             traceback.print_exc()
             return False
+
+    def _register_kglobalaccel_shortcut(self):
+        """Register shortcut with KGlobalAccel D-Bus service"""
+        try:
+            kglobalaccel = self.session_bus.get_object(
+                'org.kde.kglobalaccel',
+                '/kglobalaccel'
+            )
+            iface = dbus.Interface(kglobalaccel, 'org.kde.KGlobalAccel')
+
+            # Action ID format: [component, context, action, friendly_name]
+            action_id = dbus.Array([
+                dbus.String("telly-spelly.desktop"),
+                dbus.String(""),
+                dbus.String("ToggleRecording"),
+                dbus.String("Toggle Recording")
+            ], signature='s')
+
+            # Register the action first
+            iface.doRegister(action_id)
+
+            # Ctrl+Alt+R key code: Ctrl=0x04000000, Alt=0x08000000, R=0x52
+            # Combined: 0x0C000052 = 201326674
+            key_code = 0x04000000 | 0x08000000 | ord('R')
+
+            # Set the shortcut (flags=0 means don't overwrite if already set by user)
+            keys = dbus.Array([dbus.Int32(key_code)], signature='i')
+            iface.setShortcut(action_id, keys, dbus.UInt32(0))
+
+            logger.info("Registered Ctrl+Alt+R shortcut with KGlobalAccel")
+
+        except dbus.DBusException as e:
+            logger.warning(f"Could not register with KGlobalAccel: {e}")
+            logger.info("Shortcut can be configured manually in System Settings -> Shortcuts")
+        except Exception as e:
+            logger.warning(f"KGlobalAccel registration error: {e}")
 
     def remove_shortcuts(self):
         """Cleanup"""
