@@ -326,28 +326,31 @@ def check_already_running():
     except Exception:
         return False
 
-def send_notification(title, message, timeout_ms=20000):
+def send_notification(title, message, timeout_ms=20000, replaces_id=0):
     """Send a desktop notification via D-Bus"""
     try:
         import dbus
         bus = dbus.SessionBus()
         notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
         iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
-        return iface.Notify('Telly Spelly', 0, 'telly-spelly', title, message, [], {}, timeout_ms)
+        nid = iface.Notify('Telly Spelly', dbus.UInt32(replaces_id), 'telly-spelly', title, message, [], {}, timeout_ms)
+        return int(nid)
     except Exception as e:
         logger.warning(f"Could not send notification: {e}")
         return 0
 
 def close_notification(notification_id):
     """Close a notification by ID"""
+    if not notification_id:
+        return
     try:
         import dbus
         bus = dbus.SessionBus()
         notify = bus.get_object('org.freedesktop.Notifications', '/org/freedesktop/Notifications')
         iface = dbus.Interface(notify, 'org.freedesktop.Notifications')
-        iface.CloseNotification(notification_id)
-    except Exception:
-        pass
+        iface.CloseNotification(dbus.UInt32(notification_id))
+    except Exception as e:
+        logger.debug(f"Could not close notification: {e}")
 
 def main():
     try:
@@ -371,10 +374,12 @@ def main():
         # Create tray icon but don't initialize yet
         tray = TrayRecorder()
 
-        # Close startup notification when initialization completes
-        tray.initialization_complete.connect(lambda: close_notification(startup_notification_id))
-        tray.initialization_complete.connect(
-            lambda: send_notification('Telly Spelly', 'Ready! Use Ctrl+Alt+R to toggle recording.', 5000))
+        # Replace startup notification with ready notification when initialization completes
+        def on_init_complete():
+            # Replace the startup notification with the ready notification
+            send_notification('Telly Spelly', 'Ready! Use Ctrl+Alt+R to toggle recording.', 5000, startup_notification_id)
+
+        tray.initialization_complete.connect(on_init_complete)
 
         # Check dependencies
         if not check_dependencies():
