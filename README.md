@@ -10,17 +10,17 @@ Press a keyboard shortcut, speak, press again - your words are transcribed and c
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install portaudio19-dev libdbus-1-dev libglib2.0-dev
+sudo apt install portaudio19-dev libdbus-1-dev
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install portaudio-devel dbus-devel glib2-devel
+sudo dnf install portaudio-devel dbus-devel
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S portaudio dbus glib2
+sudo pacman -S portaudio dbus
 ```
 
 ### 2. Install Telly Spelly
