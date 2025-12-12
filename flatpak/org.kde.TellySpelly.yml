@@ -1,0 +1,76 @@
+app-id: org.kde.TellySpelly
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: telly-spelly
+
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+  - --own-name=org.kde.telly_spelly
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/pkgconfig
+  - /share/man
+  - /lib/cmake
+  - '*.a'
+  - '*.la'
+
+modules:
+  # PortAudio for PyAudio
+  - name: portaudio
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: archive
+        url: https://github.com/PortAudio/portaudio/archive/refs/tags/v19.7.0.tar.gz
+        sha256: 5af29ba58bbdbb7bbcefaaecc77ec8fc413f0db6f4c4e286c40c3e1b83174fa0
+
+  # Torch dependencies (must come before torch)
+  - torch-deps.json
+
+  # CPU-only PyTorch (166 MB instead of 2GB+ with CUDA)
+  - name: python3-torch-cpu
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-index --find-links=. --prefix=/app torch-*.whl
+    sources:
+      - type: file
+        url: https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp312-cp312-linux_x86_64.whl
+        sha256: 4856f9d6925121d13c2df07aa7580b767f449dfe71ae5acde9c27535d5da4840
+        dest-filename: torch-2.5.1+cpu-cp312-cp312-linux_x86_64.whl
+
+  # Python dependencies (generated separately to avoid pulling in CUDA torch)
+  - python-deps.json
+
+  # OpenAI Whisper (installed without deps since torch is already installed)
+  - name: python3-openai-whisper
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --prefix=/app .
+    sources:
+      - type: git
+        url: https://github.com/openai/whisper.git
+        tag: v20240930
+
+  # Telly Spelly application
+  - name: telly-spelly
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-deps --prefix=/app .
+      - install -Dm644 org.kde.telly_spelly.desktop /app/share/applications/org.kde.TellySpelly.desktop
+      - install -Dm644 src/telly_spelly/telly-spelly.png /app/share/icons/hicolor/128x128/apps/org.kde.TellySpelly.png
+      # Force CPU mode in settings
+      - mkdir -p /app/share/telly-spelly
+      - echo "force_cpu=true" > /app/share/telly-spelly/defaults.conf
+    sources:
+      - type: dir
+        path: ..

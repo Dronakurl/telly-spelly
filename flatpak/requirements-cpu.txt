@@ -1,0 +1,12 @@
+# Whisper dependencies WITHOUT torch (we install torch-cpu separately)
+tiktoken
+regex
+more-itertools
+tqdm
+numba
+numpy
+scipy
+# Audio
+pyaudio
+# DBus
+dbus-python
