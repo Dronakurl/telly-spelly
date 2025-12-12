@@ -24,6 +24,14 @@ cleanup:
   - '*.la'
 
 modules:
+  # dbus-python for D-Bus integration
+  - name: dbus-python
+    buildsystem: meson
+    sources:
+      - type: archive
+        url: https://files.pythonhosted.org/packages/source/d/dbus-python/dbus-python-1.4.0.tar.gz
+        sha256: 991666e498f60dbf3e49b8b7678f5559b8a65034fdf61aae62cdecdb7d89c770
+
   # PortAudio for PyAudio
   - name: portaudio
     buildsystem: cmake-ninja
@@ -88,8 +96,10 @@ modules:
     buildsystem: simple
     build-commands:
       - pip3 install --no-deps --no-build-isolation --prefix=/app .
-      - install -Dm644 org.kde.telly_spelly.desktop /app/share/applications/org.kde.TellySpelly.desktop
-      - install -Dm644 src/telly_spelly/telly-spelly.png /app/share/icons/hicolor/128x128/apps/org.kde.TellySpelly.png
+      # Install desktop file with corrected icon name
+      - install -Dm644 org.kde.TellySpelly.flatpak.desktop /app/share/applications/org.kde.TellySpelly.desktop
+      # Install pre-resized icon (128x128, flatpak max 512x512)
+      - install -Dm644 flatpak/org.kde.TellySpelly.png /app/share/icons/hicolor/128x128/apps/org.kde.TellySpelly.png
       # Force CPU mode in settings
       - mkdir -p /app/share/telly-spelly
       - echo "force_cpu=true" > /app/share/telly-spelly/defaults.conf
