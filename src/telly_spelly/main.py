@@ -316,16 +316,18 @@ class TrayRecorder(QSystemTrayIcon):
 def setup_application_metadata():
     QCoreApplication.setApplicationName("Telly Spelly")
     QCoreApplication.setApplicationVersion("1.0")
-    QCoreApplication.setOrganizationName("KDE")
-    QCoreApplication.setOrganizationDomain("kde.org")
+    QCoreApplication.setOrganizationName("Telly Spelly")
+    QCoreApplication.setOrganizationDomain("tellyspelly.org")
 
 def check_already_running():
     """Check if another instance is already running via D-Bus"""
     try:
         import dbus
+        from .desktop_env import get_dbus_service_name
         bus = dbus.SessionBus()
+        dbus_service = get_dbus_service_name()
         # Try to get the existing service
-        proxy = bus.get_object('org.kde.telly_spelly', '/TellySpelly')
+        proxy = bus.get_object(dbus_service, '/TellySpelly')
         # If we get here, the service exists - another instance is running
         return True
     except dbus.DBusException:
