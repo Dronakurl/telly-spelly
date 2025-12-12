@@ -1,39 +1,124 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox,
-                            QGroupBox, QFormLayout, QProgressBar, QPushButton,
+                            QGroupBox, QFormLayout, QPushButton,
                             QMessageBox)
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 import logging
 import subprocess
+import os
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
+# Mapping from model name to cache filename
+MODEL_CACHE_FILES = {
+    'tiny': 'tiny.pt',
+    'tiny.en': 'tiny.en.pt',
+    'base': 'base.pt',
+    'base.en': 'base.en.pt',
+    'small': 'small.pt',
+    'small.en': 'small.en.pt',
+    'medium': 'medium.pt',
+    'medium.en': 'medium.en.pt',
+    'large': 'large-v3.pt',
+    'large-v1': 'large-v1.pt',
+    'large-v2': 'large-v2.pt',
+    'large-v3': 'large-v3.pt',
+    'turbo': 'large-v3-turbo.pt',
+    'large-v3-turbo': 'large-v3-turbo.pt',
+}
+
+
+def is_model_cached(model_name):
+    """Check if a model is already downloaded"""
+    cache_file = MODEL_CACHE_FILES.get(model_name, f"{model_name}.pt")
+    cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper", cache_file)
+    return os.path.exists(cache_path)
+
+
+class ModelLoaderThread(QThread):
+    """Thread to load whisper model without blocking UI"""
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(object)  # Emits the loaded model
+    error = pyqtSignal(str)
+
+    def __init__(self, model_name):
+        super().__init__()
+        self.model_name = model_name
+
+    def run(self):
+        try:
+            import whisper
+
+            # Check if model needs to be downloaded
+            if is_model_cached(self.model_name):
+                self.progress.emit(f"Loading {self.model_name} model...")
+            else:
+                self.progress.emit(f"Downloading {self.model_name} model...")
+
+            model = whisper.load_model(self.model_name)
+            self.finished.emit(model)
+
+        except Exception as e:
+            logger.exception("Failed to load whisper model")
+            self.error.emit(str(e))
+
 
 class SettingsWindow(QWidget):
-    initialization_complete = pyqtSignal()
+    model_changed = pyqtSignal(object, str)  # Emits (new_model, model_name)
 
-    def __init__(self):
+    def __init__(self, transcriber=None):
         super().__init__()
+        self.transcriber = transcriber
         self.setWindowTitle("Telly Spelly Settings")
         self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
-        
+
         # Initialize settings
         self.settings = Settings()
-        
+
+        # Track loading state
+        self.loader_thread = None
+        self.is_loading = False
+
         layout = QVBoxLayout()
         self.setLayout(layout)
-        
+
         # Model settings group
         model_group = QGroupBox("Model Settings")
         model_layout = QFormLayout()
-        
+
         self.model_combo = QComboBox()
-        self.model_combo.addItems(Settings.VALID_MODELS)
+        # Only show models available for current hardware
+        available_models = self.settings.get_available_models()
+        self.model_combo.addItems(available_models)
         current_model = self.settings.get('model', 'base')
-        self.model_combo.setCurrentText(current_model)
+        if current_model in available_models:
+            self.model_combo.setCurrentText(current_model)
         self.model_combo.currentTextChanged.connect(self.on_model_changed)
         model_layout.addRow("Whisper Model:", self.model_combo)
-        
+
+        # Status label for loading/downloading
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("color: #666; font-style: italic;")
+        model_layout.addRow("", self.status_label)
+
+        # Show GPU info and excluded models
+        gpu_memory = self.settings.get_gpu_memory()
+        if gpu_memory:
+            gpu_text = f"GPU: {gpu_memory:.1f} GB VRAM"
+        else:
+            gpu_text = "GPU: Not detected (CPU mode)"
+
+        # Check for excluded models
+        all_models = Settings.ALL_MODELS
+        excluded = [m for m in all_models if m not in available_models]
+        if excluded:
+            gpu_text += f"\nExcluded models (insufficient VRAM): {', '.join(excluded)}"
+
+        gpu_label = QLabel(gpu_text)
+        gpu_label.setStyleSheet("color: gray; font-size: 10px;")
+        gpu_label.setWordWrap(True)
+        model_layout.addRow("", gpu_label)
+
         self.lang_combo = QComboBox()
         # Add all supported languages
         for code, name in Settings.VALID_LANGUAGES.items():
@@ -45,34 +130,24 @@ class SettingsWindow(QWidget):
             self.lang_combo.setCurrentIndex(index)
         self.lang_combo.currentIndexChanged.connect(self.on_language_changed)
         model_layout.addRow("Language:", self.lang_combo)
-        
+
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
-        
+
         # Recording settings group
         recording_group = QGroupBox("Recording Settings")
         recording_layout = QFormLayout()
-        
+
         self.device_combo = QComboBox()
-        self.device_combo.addItems(["Default Microphone"])  # You can populate this with actual devices
+        self.device_combo.addItems(["Default Microphone"])
         current_mic = self.settings.get('mic_index', 0)
         self.device_combo.setCurrentIndex(current_mic)
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
         recording_layout.addRow("Input Device:", self.device_combo)
-        
+
         recording_group.setLayout(recording_layout)
         layout.addWidget(recording_group)
-        
-        # Loading progress
-        self.progress_group = QGroupBox("Model Loading")
-        progress_layout = QVBoxLayout()
-        self.progress_bar = QProgressBar()
-        self.progress_label = QLabel("Select a model to load")
-        progress_layout.addWidget(self.progress_label)
-        progress_layout.addWidget(self.progress_bar)
-        self.progress_group.setLayout(progress_layout)
-        layout.addWidget(self.progress_group)
-        
+
         # Add shortcuts group
         shortcuts_group = QGroupBox("Keyboard Shortcuts")
         shortcuts_layout = QVBoxLayout()
@@ -86,16 +161,32 @@ class SettingsWindow(QWidget):
 
         shortcuts_group.setLayout(shortcuts_layout)
         layout.addWidget(shortcuts_group)
-        
+
         # Add stretch to keep widgets at the top
         layout.addStretch()
-        
+
         # Set a reasonable size
         self.setMinimumWidth(300)
-        
-        # Initialize whisper model
-        self.whisper_model = None
-        self.current_model = None
+
+        # Track current model name
+        self.current_model_name = current_model
+
+        # Show initial model status
+        self._update_initial_status()
+
+    def _update_initial_status(self):
+        """Show status of currently loaded model"""
+        if self.transcriber and self.transcriber.model:
+            self.status_label.setText(f"Model {self.current_model_name} loaded")
+        elif is_model_cached(self.current_model_name):
+            self.status_label.setText(f"Model {self.current_model_name} ready (cached)")
+        else:
+            self.status_label.setText(f"Model {self.current_model_name} not downloaded")
+
+    def set_transcriber(self, transcriber):
+        """Set the transcriber reference for model updates"""
+        self.transcriber = transcriber
+        self._update_initial_status()
 
     def on_language_changed(self, index):
         language_code = self.lang_combo.currentData()
@@ -113,9 +204,17 @@ class SettingsWindow(QWidget):
             QMessageBox.warning(self, "Error", str(e))
 
     def on_model_changed(self, model_name):
-        if model_name == self.current_model:
+        if model_name == self.current_model_name:
             return
-            
+
+        if self.is_loading:
+            # Revert selection if already loading
+            self.model_combo.blockSignals(True)
+            self.model_combo.setCurrentText(self.current_model_name)
+            self.model_combo.blockSignals(False)
+            QMessageBox.warning(self, "Loading", "Please wait for current model to finish loading.")
+            return
+
         try:
             self.settings.set('model', model_name)
         except ValueError as e:
@@ -123,26 +222,74 @@ class SettingsWindow(QWidget):
             QMessageBox.warning(self, "Error", str(e))
             return
 
-        self.progress_label.setText(f"Loading {model_name} model...")
-        self.progress_bar.setRange(0, 0)  # Indeterminate progress
-        
-        # Load model in a separate thread to prevent UI freezing
-        QTimer.singleShot(100, lambda: self.load_model(model_name))
+        # Disable combo while loading
+        self.is_loading = True
+        self.model_combo.setEnabled(False)
 
-    def load_model(self, model_name):
+        # Start loading in background thread
+        self.loader_thread = ModelLoaderThread(model_name)
+        self.loader_thread.progress.connect(self._on_load_progress)
+        self.loader_thread.finished.connect(lambda model: self._on_load_finished(model, model_name))
+        self.loader_thread.error.connect(self._on_load_error)
+        self.loader_thread.start()
+
+    def _on_load_progress(self, message):
+        self.status_label.setText(message)
+
+    def _on_load_finished(self, model, model_name):
+        self.is_loading = False
+        self.model_combo.setEnabled(True)
+        self.status_label.setText(f"Model {model_name} loaded")
+
+        # Update the transcriber with new model
+        if self.transcriber:
+            # Clear old model from memory
+            import gc
+            old_model = self.transcriber.model
+            self.transcriber.model = model
+            del old_model
+            gc.collect()
+
+            # Try to free GPU memory
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except ImportError:
+                pass
+
+            logger.info(f"Transcriber model updated to {model_name}")
+
+        self.current_model_name = model_name
+        self.model_changed.emit(model, model_name)
+
+        # Clean up thread
+        if self.loader_thread:
+            self.loader_thread.deleteLater()
+            self.loader_thread = None
+
+    def _on_load_error(self, error):
+        self.is_loading = False
+        self.model_combo.setEnabled(True)
+        self.status_label.setText(f"Error: {error}")
+
+        # Revert to previous model
+        self.model_combo.blockSignals(True)
+        self.model_combo.setCurrentText(self.current_model_name)
+        self.model_combo.blockSignals(False)
+
+        # Restore setting
         try:
-            import whisper
-            self.whisper_model = whisper.load_model(model_name)
-            self.current_model = model_name
-            self.progress_label.setText(f"Model {model_name} loaded successfully")
-            self.progress_bar.setRange(0, 100)
-            self.progress_bar.setValue(100)
-            self.initialization_complete.emit()
-        except Exception as e:
-            logger.exception("Failed to load whisper model")
-            self.progress_label.setText(f"Failed to load model: {str(e)}")
-            self.progress_bar.setRange(0, 100)
-            self.progress_bar.setValue(0)
+            self.settings.set('model', self.current_model_name)
+        except ValueError:
+            pass
+
+        QMessageBox.critical(self, "Model Load Error", f"Failed to load model: {error}")
+
+        # Clean up thread
+        if self.loader_thread:
+            self.loader_thread.deleteLater()
+            self.loader_thread = None
 
     def open_system_shortcuts(self):
         """Open KDE System Settings to the shortcuts page"""
@@ -156,4 +303,4 @@ class SettingsWindow(QWidget):
                 QMessageBox.information(self, "Shortcuts",
                     "Could not open System Settings.\n\n"
                     "Please open System Settings manually and navigate to:\n"
-                    "Shortcuts → Shortcuts → Telly Spelly") 
+                    "Shortcuts → Shortcuts → Telly Spelly")

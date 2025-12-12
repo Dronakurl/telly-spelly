@@ -1,7 +1,9 @@
 from PyQt6.QtCore import QSettings
+import json
 
 class Settings:
-    VALID_MODELS = ['tiny', 'base', 'small', 'medium', 'large', 'turbo']
+    ALL_MODELS = ['tiny', 'base', 'small', 'medium', 'large', 'turbo']
+    VALID_MODELS = ALL_MODELS  # For backwards compatibility
     # List of valid language codes for Whisper
     VALID_LANGUAGES = {
         'auto': 'Auto-detect',
@@ -51,4 +53,46 @@ class Settings:
             raise ValueError(f"Invalid language: {value}")
                 
         self.settings.setValue(key, value)
+        self.settings.sync()
+
+    def get_available_models(self):
+        """Get list of models available for current hardware"""
+        models_json = self.settings.value('available_models', None)
+        if models_json:
+            try:
+                return json.loads(models_json)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        return self.ALL_MODELS
+
+    def set_available_models(self, models):
+        """Set list of models available for current hardware"""
+        self.settings.setValue('available_models', json.dumps(models))
+        self.settings.sync()
+
+    def get_gpu_memory(self):
+        """Get detected GPU memory in GB, or None if CPU-only"""
+        value = self.settings.value('gpu_memory_gb', None)
+        if value is not None:
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                pass
+        return None
+
+    def set_gpu_memory(self, memory_gb):
+        """Set detected GPU memory"""
+        if memory_gb is None:
+            self.settings.remove('gpu_memory_gb')
+        else:
+            self.settings.setValue('gpu_memory_gb', memory_gb)
+        self.settings.sync()
+
+    def is_hardware_detected(self):
+        """Check if hardware detection has been performed"""
+        return self.settings.value('hardware_detected', False, type=bool)
+
+    def set_hardware_detected(self, detected=True):
+        """Mark that hardware detection has been performed"""
+        self.settings.setValue('hardware_detected', detected)
         self.settings.sync()

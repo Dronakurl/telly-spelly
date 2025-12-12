@@ -1,19 +1,27 @@
 from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtGui import QKeySequence
+from PyQt6.QtWidgets import QApplication
 import logging
-import dbus
-import dbus.service
 
 logger = logging.getLogger(__name__)
+
+# Try to import KDE integration
+try:
+    import dbus
+    import dbus.service
+    DBUS_AVAILABLE = True
+except ImportError:
+    DBUS_AVAILABLE = False
+    logger.warning("dbus-python not available, shortcuts will be limited")
 
 DBUS_SERVICE = "org.kde.telly_spelly"
 DBUS_PATH = "/TellySpelly"
 DBUS_INTERFACE = "org.kde.telly_spelly"
-# Use the desktop file name for KDE shortcut integration
 DESKTOP_FILE = "telly-spelly.desktop"
 
 
 class DBusService(dbus.service.Object):
-    """D-Bus service object that receives shortcut triggers from KDE"""
+    """D-Bus service object that receives shortcut triggers"""
 
     def __init__(self, bus, path, shortcuts):
         dbus.service.Object.__init__(self, bus, path)
@@ -21,33 +29,25 @@ class DBusService(dbus.service.Object):
 
     @dbus.service.method(DBUS_INTERFACE, in_signature='', out_signature='b')
     def StartRecording(self):
-        """Start recording - called by KDE when shortcut is pressed"""
         logger.info("D-Bus: StartRecording called")
         self.shortcuts.start_recording_triggered.emit()
         return True
 
     @dbus.service.method(DBUS_INTERFACE, in_signature='', out_signature='b')
     def StopRecording(self):
-        """Stop recording - called by KDE when shortcut is pressed"""
         logger.info("D-Bus: StopRecording called")
         self.shortcuts.stop_recording_triggered.emit()
         return True
 
     @dbus.service.method(DBUS_INTERFACE, in_signature='', out_signature='b')
     def ToggleRecording(self):
-        """Toggle recording - called by KDE when shortcut is pressed"""
         logger.info("D-Bus: ToggleRecording called")
         self.shortcuts.toggle_recording_triggered.emit()
         return True
 
 
 class GlobalShortcuts(QObject):
-    """
-    Global Shortcuts integration via D-Bus and KGlobalAccel.
-
-    We expose a D-Bus service that gets called by KDE when the shortcut
-    is pressed. The desktop file action defines the dbus-send command.
-    """
+    """Global Shortcuts via KGlobalAccel D-Bus API"""
 
     start_recording_triggered = pyqtSignal()
     stop_recording_triggered = pyqtSignal()
@@ -62,20 +62,24 @@ class GlobalShortcuts(QObject):
 
     def setup_shortcuts(self, start_key='Ctrl+Alt+R', stop_key='Ctrl+Alt+S'):
         """Setup D-Bus service and register shortcut with KGlobalAccel"""
+        if not DBUS_AVAILABLE:
+            logger.warning("D-Bus not available")
+            return False
+
         try:
             self.session_bus = dbus.SessionBus()
 
-            # Request the service name (must keep reference!)
+            # Request the service name
             self.bus_name = dbus.service.BusName(DBUS_SERVICE, self.session_bus)
 
-            # Create the service object for external D-Bus calls
+            # Create the service object
             self.dbus_service = DBusService(self.bus_name, DBUS_PATH, self)
 
             self.registered = True
             logger.info(f"D-Bus service registered: {DBUS_SERVICE}")
 
-            # Register shortcut with KGlobalAccel
-            self._register_kglobalaccel_shortcut()
+            # Register and grab the shortcut
+            self._register_and_grab_shortcut()
 
             return True
 
@@ -85,8 +89,8 @@ class GlobalShortcuts(QObject):
             traceback.print_exc()
             return False
 
-    def _register_kglobalaccel_shortcut(self):
-        """Register shortcut with KGlobalAccel D-Bus service"""
+    def _register_and_grab_shortcut(self):
+        """Register shortcut with KGlobalAccel and listen for activation"""
         try:
             kglobalaccel = self.session_bus.get_object(
                 'org.kde.kglobalaccel',
@@ -94,38 +98,87 @@ class GlobalShortcuts(QObject):
             )
             iface = dbus.Interface(kglobalaccel, 'org.kde.KGlobalAccel')
 
-            # Action ID for desktop file action
+            # Use our own component name (not desktop file) for runtime shortcuts
+            component_name = "telly_spelly"
+            action_name = "toggle_recording"
+
+            # Action ID format: [component, context, action, friendly_name]
             action_id = dbus.Array([
-                dbus.String(DESKTOP_FILE),
+                dbus.String(component_name),
                 dbus.String(""),
-                dbus.String("ToggleRecording"),
+                dbus.String(action_name),
                 dbus.String("Toggle Recording")
             ], signature='s')
 
             # Register the action
             iface.doRegister(action_id)
 
-            # Ctrl+Alt+R key code: Ctrl=0x04000000, Alt=0x08000000, R=0x52
+            # Ctrl+Alt+R key code
             key_code = 0x04000000 | 0x08000000 | ord('R')
             keys = dbus.Array([dbus.Int32(key_code)], signature='i')
 
-            # Use setForeignShortcut to set the shortcut for the desktop action
-            iface.setForeignShortcut(action_id, keys)
+            # Set the shortcut (use setShortcut with flags=0x02 for SetPresent)
+            try:
+                result = iface.setShortcut(action_id, keys, dbus.UInt32(0x02))
+                if result and len(result) > 0:
+                    logger.info(f"Shortcut set via setShortcut: {list(result)}")
+                else:
+                    # Fallback to setForeignShortcut
+                    iface.setForeignShortcut(action_id, keys)
+                    logger.info("Shortcut set via setForeignShortcut")
+            except dbus.DBusException:
+                iface.setForeignShortcut(action_id, keys)
+                logger.info("Shortcut set via setForeignShortcut (fallback)")
 
             # Verify
             result = iface.shortcut(action_id)
             if result and len(result) > 0 and result[0] == key_code:
                 logger.info("Registered Ctrl+Alt+R shortcut with KGlobalAccel")
             else:
-                logger.warning(f"Shortcut may not have been set correctly: {result}")
+                logger.warning(f"Shortcut verification returned: {list(result) if result else 'empty'}")
+
+            # Listen for the shortcut signal
+            self._listen_for_shortcut(component_name)
 
         except dbus.DBusException as e:
             logger.warning(f"Could not register with KGlobalAccel: {e}")
-            logger.info("Shortcut can be configured manually in System Settings -> Shortcuts")
         except Exception as e:
             logger.warning(f"KGlobalAccel registration error: {e}")
             import traceback
             traceback.print_exc()
+
+    def _listen_for_shortcut(self, component_name):
+        """Listen for globalShortcutPressed signal from our component"""
+        try:
+            # Component path uses the component name with underscores
+            component_path = f"/component/{component_name}"
+            component = self.session_bus.get_object('org.kde.kglobalaccel', component_path)
+
+            component.connect_to_signal(
+                'globalShortcutPressed',
+                self._on_shortcut_pressed,
+                dbus_interface='org.kde.kglobalaccel.Component'
+            )
+            logger.info(f"Listening for shortcut signals on {component_path}")
+        except dbus.DBusException as e:
+            logger.warning(f"Could not setup shortcut listener on {component_path}: {e}")
+            # Try alternative path
+            try:
+                alt_path = "/component/telly_spelly_desktop"
+                component = self.session_bus.get_object('org.kde.kglobalaccel', alt_path)
+                component.connect_to_signal(
+                    'globalShortcutPressed',
+                    self._on_shortcut_pressed,
+                    dbus_interface='org.kde.kglobalaccel.Component'
+                )
+                logger.info(f"Listening for shortcut signals on {alt_path}")
+            except dbus.DBusException:
+                pass
+
+    def _on_shortcut_pressed(self, component_unique, shortcut_unique, timestamp):
+        """Handle shortcut press signal from KGlobalAccel"""
+        logger.info(f"KGlobalAccel shortcut pressed: {component_unique}/{shortcut_unique}")
+        self.toggle_recording_triggered.emit()
 
     def remove_shortcuts(self):
         """Cleanup"""

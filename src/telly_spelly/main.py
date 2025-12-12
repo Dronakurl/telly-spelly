@@ -21,6 +21,7 @@ import os
 from .shortcuts import GlobalShortcuts
 from .settings import Settings
 from .install import install_silent
+from . import gpu
 # from mic_debug import MicDebugWindow
 
 # Setup logging
@@ -207,7 +208,7 @@ class TrayRecorder(QSystemTrayIcon):
 
     def toggle_settings(self):
         if not self.settings_window:
-            self.settings_window = SettingsWindow()
+            self.settings_window = SettingsWindow(transcriber=self.transcriber)
 
         if self.settings_window.isVisible():
             self.settings_window.hide()
@@ -373,6 +374,21 @@ def main():
         if install_silent():
             logger.info("Desktop integration installed automatically")
 
+        # Detect GPU and configure available models on first run
+        settings = Settings()
+        if not settings.is_hardware_detected():
+            logger.info("First run: detecting hardware...")
+            config = gpu.detect_and_configure()
+            settings.set_gpu_memory(config['gpu_memory_gb'])
+            settings.set_available_models(config['available_models'])
+            # Set default model if not already set
+            current_model = settings.get('model', None)
+            if current_model is None or current_model not in config['available_models']:
+                settings.set('model', config['default_model'])
+                logger.info(f"Default model set to: {config['default_model']}")
+            settings.set_hardware_detected(True)
+            logger.info(f"Hardware detection complete. GPU: {config['gpu_memory_gb']}GB, Models: {config['available_models']}")
+
         # Send startup notification (0 = no expiry, will be replaced when ready)
         startup_notification_id = send_notification('Telly Spelly', 'Starting up...', 0)
 
@@ -387,8 +403,12 @@ def main():
 
         # Replace startup notification with ready notification when initialization completes
         def on_init_complete():
-            # Replace the startup notification with the ready notification
-            send_notification('Telly Spelly', 'Ready! Configure shortcut in System Settings → Shortcuts → Telly Spelly', 8000, startup_notification_id)
+            # Check if shortcut was registered successfully
+            if tray.shortcuts and tray.shortcuts.registered:
+                msg = 'Ready! Press Ctrl+Alt+R to toggle recording.'
+            else:
+                msg = 'Ready! Configure shortcut in System Settings → Shortcuts → Telly Spelly'
+            send_notification('Telly Spelly', msg, 8000, startup_notification_id)
 
         tray.initialization_complete.connect(on_init_complete)
 
