@@ -42,12 +42,17 @@ Issues = "https://github.com/Dronakurl/telly-spelly/issues"
 
 [project.scripts]
 telly-spelly = "telly_spelly.main:main"
+telly-spelly-install = "telly_spelly.install:main"
+telly-spelly-uninstall = "telly_spelly.install:uninstall"
 
 [project.gui-scripts]
 telly-spelly-gui = "telly_spelly.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/telly_spelly"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"src/telly_spelly/telly-spelly.png" = "share/icons/hicolor/128x128/apps/telly-spelly.png"
 
 [tool.hatch.build.targets.sdist]
 include = [

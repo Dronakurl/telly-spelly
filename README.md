@@ -27,18 +27,21 @@ sudo pacman -S portaudio dbus glib2
 
 **With uv (recommended):**
 ```bash
-uvx telly-spelly
+uv tool install telly-spelly
 ```
 
 **With pip:**
 ```bash
 pip install telly-spelly
-telly-spelly
 ```
 
-### 3. Configure shortcut
+### 3. Setup desktop integration
 
-Go to **System Settings → Shortcuts → Telly Spelly** and set `Ctrl+Alt+R` for toggle recording.
+```bash
+telly-spelly-install
+```
+
+This installs the app icon, desktop entry, and configures Ctrl+Alt+R shortcut.
 
 ## Usage
 
