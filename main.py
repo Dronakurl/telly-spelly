@@ -1,4 +1,10 @@
 import sys
+
+# Initialize D-Bus GLib main loop BEFORE importing Qt
+# This is required for proper D-Bus/Qt integration
+from dbus.mainloop.glib import DBusGMainLoop
+DBusGMainLoop(set_as_default=True)
+
 from PyQt6.QtWidgets import (QApplication, QMessageBox, QSystemTrayIcon, QMenu)
 from PyQt6.QtCore import Qt, QTimer, QCoreApplication
 from PyQt6.QtGui import QIcon, QAction

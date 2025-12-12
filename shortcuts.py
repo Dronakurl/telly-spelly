@@ -2,7 +2,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 import logging
 import dbus
 import dbus.service
-from dbus.mainloop.glib import DBusGMainLoop
 import secrets
 
 logger = logging.getLogger(__name__)
@@ -59,9 +58,6 @@ class GlobalShortcuts(QObject):
     def setup_shortcuts(self, start_key='Ctrl+Alt+R', stop_key='Ctrl+Alt+S'):
         """Setup D-Bus service for shortcuts"""
         try:
-            # Initialize D-Bus with GLib main loop (compatible with Qt)
-            DBusGMainLoop(set_as_default=True)
-
             self.session_bus = dbus.SessionBus()
 
             # Request the service name (must keep reference!)
