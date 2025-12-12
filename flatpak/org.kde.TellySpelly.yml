@@ -48,14 +48,36 @@ modules:
         sha256: 4856f9d6925121d13c2df07aa7580b767f449dfe71ae5acde9c27535d5da4840
         dest-filename: torch-2.5.1+cpu-cp312-cp312-linux_x86_64.whl
 
-  # Python dependencies (generated separately to avoid pulling in CUDA torch)
-  - python-deps.json
+  # Python dependencies (wheel-only via req2flatpak to avoid meson build issues)
+  - python-deps-wheels.json
+
+  # Build tools (setuptools, hatchling and dependencies)
+  - name: python3-build-tools
+    buildsystem: simple
+    build-commands:
+      - pip3 install --no-index --find-links=. --prefix=/app *.whl
+    sources:
+      - type: file
+        url: https://files.pythonhosted.org/packages/a3/dc/17031897dae0efacfea57dfd3a82fdd2a2aeb58e0ff71b77b87e44edc772/setuptools-80.9.0-py3-none-any.whl
+        sha256: 062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922
+      - type: file
+        url: https://files.pythonhosted.org/packages/cc/20/ff623b09d963f88bfde16306a54e12ee5ea43e9b597108672ff3a408aad6/pathspec-0.12.1-py3-none-any.whl
+        sha256: a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08
+      - type: file
+        url: https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl
+        sha256: e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
+      - type: file
+        url: https://files.pythonhosted.org/packages/4f/7e/bc19996fa86cad8801e8ffe6f1bba5836ca0160df76d0410d27432193712/trove_classifiers-2025.12.1.14-py3-none-any.whl
+        sha256: a8206978ede95937b9959c3aff3eb258bbf7b07dff391ddd4ea7e61f316635ab
+      - type: file
+        url: https://files.pythonhosted.org/packages/0d/a5/48cb7efb8b4718b1a4c0c331e3364a3a33f614ff0d6afd2b93ee883d3c47/hatchling-1.28.0-py3-none-any.whl
+        sha256: dc48722b68b3f4bbfa3ff618ca07cdea6750e7d03481289ffa8be1521d18a961
 
   # OpenAI Whisper (installed without deps since torch is already installed)
   - name: python3-openai-whisper
     buildsystem: simple
     build-commands:
-      - pip3 install --no-deps --prefix=/app .
+      - pip3 install --no-deps --no-build-isolation --prefix=/app .
     sources:
       - type: git
         url: https://github.com/openai/whisper.git
@@ -65,7 +87,7 @@ modules:
   - name: telly-spelly
     buildsystem: simple
     build-commands:
-      - pip3 install --no-deps --prefix=/app .
+      - pip3 install --no-deps --no-build-isolation --prefix=/app .
       - install -Dm644 org.kde.telly_spelly.desktop /app/share/applications/org.kde.TellySpelly.desktop
       - install -Dm644 src/telly_spelly/telly-spelly.png /app/share/icons/hicolor/128x128/apps/org.kde.TellySpelly.png
       # Force CPU mode in settings
