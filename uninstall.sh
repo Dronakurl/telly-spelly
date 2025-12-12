@@ -27,6 +27,24 @@ rm -f "$HOME/.local/share/applications/$APP_NAME.desktop"
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 echo -e "  ${GREEN}✓${NC} Desktop entry removed"
 
+# Remove icon
+echo -e "${YELLOW}Removing icon...${NC}"
+rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/telly-spelly.svg"
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+echo -e "  ${GREEN}✓${NC} Icon removed"
+
+# Remove KDE shortcuts
+echo -e "${YELLOW}Removing KDE shortcuts...${NC}"
+if command -v kwriteconfig6 &> /dev/null; then
+    kwriteconfig6 --file "$HOME/.config/kglobalshortcutsrc" --group "telly-spelly.desktop" --delete-group 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Shortcuts removed"
+elif command -v kwriteconfig5 &> /dev/null; then
+    kwriteconfig5 --file "$HOME/.config/kglobalshortcutsrc" --group "telly-spelly.desktop" --delete-group 2>/dev/null || true
+    echo -e "  ${GREEN}✓${NC} Shortcuts removed"
+else
+    echo -e "  ${YELLOW}!${NC} kwriteconfig not found, shortcuts may need manual removal"
+fi
+
 # Remove virtual environment
 echo -e "${YELLOW}Removing virtual environment...${NC}"
 if [ -d "$VENV_DIR" ]; then
