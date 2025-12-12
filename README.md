@@ -1,108 +1,109 @@
-# Telly Spelly for KDE Plasma
+# Telly Spelly
 
-A sleek KDE Plasma application that records audio and transcribes it in real-time using OpenAI's Whisper. Created by Guilherme da Silveira.
+Voice-to-text transcription for KDE Plasma using OpenAI's Whisper.
 
-## Features
+Press a keyboard shortcut, speak, press again - your words are transcribed and copied to the clipboard.
 
-- 🎙️ **Easy Recording**: Start/stop recording with a single click in the system tray
-- 🔊 **Live Volume Meter**: Visual feedback while recording
-- ⚡ **Global Shortcuts**: Configurable keyboard shortcuts for quick recording
-- 🎯 **Microphone Selection**: Choose your preferred input device
-- 📋 **Instant Clipboard**: Transcribed text is automatically copied to your clipboard
-- 🎨 **Native KDE Integration**: Follows your system theme and integrates seamlessly with Plasma
+## Quick Install
 
-## Installation
+### Step 1: Install System Dependencies
 
-1. Clone the repository:
+**Ubuntu/Debian:**
 ```bash
-git clone https://github.com/gbasilveira/telly-spelly.git
-cd telly-spelly
+sudo apt install python3 python3-pip python3-venv git pkg-config portaudio19-dev libdbus-1-dev libglib2.0-dev
 ```
 
-2. Run the installer:
+**Fedora:**
 ```bash
-python3 install.py
+sudo dnf install python3 python3-pip python3-devel git pkg-config portaudio-devel dbus-devel glib2-devel
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S python python-pip git pkg-config portaudio dbus glib2
+```
+
+### Step 2: Run the Installer
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Dronakurl/telly-spelly/main/get-telly-spelly.sh | bash
+```
+
+Or with wget:
+```bash
+wget -qO- https://raw.githubusercontent.com/Dronakurl/telly-spelly/main/get-telly-spelly.sh | bash
 ```
 
 The installer will:
-- Install all required dependencies
-- Set up the application in your user directory
-- Create desktop entries and icons
-- Configure the launcher
+- Download Telly Spelly to `~/.local/share/telly-spelly`
+- Create a Python virtual environment
+- Install all Python dependencies (including Whisper)
+- Add a desktop entry to your application menu
+- Register keyboard shortcuts
 
-## Requirements
+### Step 3: Launch
 
-- Python 3.8 or higher
-- KDE Plasma desktop environment
-- PortAudio (for audio recording)
-- CUDA-capable GPU (optional, for faster transcription)
-
-System packages (Ubuntu/Debian):
-```bash
-sudo apt install python3-pyaudio portaudio19-dev
-```
-
-System packages (Fedora):
-```bash
-sudo dnf install python3-pyaudio portaudio-devel
-```
+- Open **Telly Spelly** from your application menu, or
+- Log out and back in, then use **Ctrl+Alt+R** to toggle recording
 
 ## Usage
 
-1. Launch "Telly Spelly" from your application menu or run:
-```bash
-telly-spelly
-```
+1. **Start**: Press `Ctrl+Alt+R` or click the tray icon
+2. **Speak**: A small recording indicator appears in the corner
+3. **Stop**: Press `Ctrl+Alt+R` again or click "Stop Recording"
+4. **Done**: Transcribed text is automatically copied to your clipboard
 
-2. Click the tray icon or use configured shortcuts to start/stop recording
-3. When recording stops, the audio will be automatically transcribed
-4. The transcribed text is copied to your clipboard
+## Features
+
+- **Global Shortcuts**: `Ctrl+Alt+R` to toggle recording (configurable)
+- **System Tray**: Unobtrusive tray icon with quick access
+- **Local Processing**: Uses Whisper locally - no cloud services, no API keys
+- **Auto Clipboard**: Transcribed text is instantly available for pasting
+- **KDE Integration**: Native look and feel on KDE Plasma
 
 ## Configuration
 
-- Right-click the tray icon and select "Settings"
-- Configure:
-  - Input device selection
-  - Global keyboard shortcuts
-  - Whisper model selection
-  - Interface preferences
+Right-click the tray icon and select **Settings** to configure:
+- Whisper model (tiny, base, small, medium, large, turbo)
+- Language selection
+- Input device
 
-## Uninstallation
+Keyboard shortcuts can be customized in:
+**System Settings → Shortcuts → Shortcuts → Telly Spelly**
 
-To remove the application:
+## Requirements
+
+- KDE Plasma desktop (5 or 6)
+- Python 3.8+
+- ~2GB disk space (for Whisper model)
+- NVIDIA GPU recommended for faster transcription (works on CPU too)
+
+## Uninstall
+
 ```bash
-python3 uninstall.py
+~/.local/share/telly-spelly/uninstall.sh
 ```
 
-## Technical Details
+## Troubleshooting
 
-- Built with PyQt6 for the GUI
-- Uses OpenAI's Whisper for transcription
-- Integrates with KDE Plasma using system tray and global shortcuts
-- Records audio using PyAudio
-- Processes audio with scipy for optimal quality
+**Shortcuts not working?**
+- Make sure Telly Spelly is running (check system tray)
+- Try logging out and back in after installation
+- Check System Settings → Shortcuts → Telly Spelly
 
-## Contributing
+**No audio recording?**
+- Check that your microphone is working in system settings
+- Try selecting a different input device in Telly Spelly settings
 
-Contributions are welcome! Feel free to:
-- Report issues
-- Suggest features
-- Submit pull requests
+**Slow transcription?**
+- Use a smaller Whisper model (tiny or base) in settings
+- If you have an NVIDIA GPU, ensure CUDA is installed
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details.
 
-## Acknowledgments
+## Credits
 
-- [OpenAI Whisper](https://github.com/openai/whisper) for the amazing speech recognition model
-- KDE Community for the excellent desktop environment
-- All contributors and users of this project
-
-## Author
-
-**Guilherme da Silveira**
-
----
-
-Made with ❤️ for the KDE Community
+- [OpenAI Whisper](https://github.com/openai/whisper) for speech recognition
+- Original concept by Guilherme da Silveira
