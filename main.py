@@ -314,11 +314,32 @@ def setup_application_metadata():
     QCoreApplication.setOrganizationName("KDE")
     QCoreApplication.setOrganizationDomain("kde.org")
 
+def check_already_running():
+    """Check if another instance is already running via D-Bus"""
+    try:
+        import dbus
+        bus = dbus.SessionBus()
+        # Try to get the existing service
+        proxy = bus.get_object('org.kde.telly_spelly', '/TellySpelly')
+        # If we get here, the service exists - another instance is running
+        return True
+    except dbus.DBusException:
+        # Service doesn't exist, no other instance running
+        return False
+    except Exception:
+        return False
+
 def main():
     try:
         app = QApplication(sys.argv)
         setup_application_metadata()
-        
+
+        # Check if already running
+        if check_already_running():
+            QMessageBox.information(None, "Telly Spelly",
+                "Telly Spelly is already running.\nCheck your system tray.")
+            return 0
+
         # Show loading window first
         loading_window = LoadingWindow()
         loading_window.show()
