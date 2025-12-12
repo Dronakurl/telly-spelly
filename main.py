@@ -109,9 +109,15 @@ class TrayRecorder(QSystemTrayIcon):
         QApplication.instance().setWindowIcon(self.app_icon)
         self.setIcon(self.app_icon)
         
-        # Use app icon for normal state and theme icon for recording
+        # Use app icon for normal state and red recording icon for recording
         self.normal_icon = self.app_icon
-        self.recording_icon = QIcon.fromTheme("media-playback-stop")
+        self.recording_icon = QIcon.fromTheme("media-record")
+        if self.recording_icon.isNull():
+            # Fallback to audio-input-microphone if media-record not available
+            self.recording_icon = QIcon.fromTheme("audio-input-microphone")
+        if self.recording_icon.isNull():
+            # Last resort: use the app icon
+            self.recording_icon = self.app_icon
         
         # Create menu
         self.setup_menu()
