@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install desktop integration for Telly Spelly (icon, desktop entry, KDE shortcuts)"""
+"""Install desktop integration for Telly Spelly (icon, desktop entry, shortcuts for KDE/XFCE)"""
 
 import os
 import sys
@@ -7,33 +7,51 @@ import shutil
 import subprocess
 from pathlib import Path
 
+try:
+    from .desktop_env import get_desktop_environment, get_dbus_service_name
+except ImportError:
+    # Fallback for when running directly
+    import desktop_env
+    get_desktop_environment = desktop_env.get_desktop_environment
+    get_dbus_service_name = desktop_env.get_dbus_service_name
 
-DESKTOP_ENTRY = """[Desktop Entry]
+
+# Detect desktop environment
+DESKTOP_ENV = get_desktop_environment()
+DBUS_SERVICE = get_dbus_service_name(DESKTOP_ENV)
+
+# Desktop entry categories based on DE
+if DESKTOP_ENV == 'kde':
+    CATEGORIES = "AudioVideo;Audio;Utility;Qt;KDE;"
+else:
+    CATEGORIES = "AudioVideo;Audio;Utility;Qt;XFCE;"
+
+DESKTOP_ENTRY = f"""[Desktop Entry]
 Name=Telly Spelly
 Comment=Voice to text transcription using Whisper
 Exec=telly-spelly
 Icon=telly-spelly
 Terminal=false
 Type=Application
-Categories=AudioVideo;Audio;Utility;Qt;KDE;
+Categories={CATEGORIES}
 Keywords=voice;speech;transcription;whisper;
-X-DBUS-ServiceName=org.kde.telly_spelly
+X-DBUS-ServiceName={DBUS_SERVICE}
 
 Actions=ToggleRecording;
 
 [Desktop Action ToggleRecording]
 Name=Toggle Recording
-Exec=dbus-send --session --type=method_call --dest=org.kde.telly_spelly /TellySpelly org.kde.telly_spelly.ToggleRecording
+Exec=dbus-send --session --type=method_call --dest={DBUS_SERVICE} /TellySpelly {DBUS_SERVICE}.ToggleRecording
 Icon=media-record
 """
 
-SHORTCUT_ENTRY = """[Desktop Entry]
+SHORTCUT_ENTRY = f"""[Desktop Entry]
 Name=Telly Spelly
 Comment=Voice to text transcription
 
 [Desktop Action ToggleRecording]
 Name=Toggle Recording
-Exec=dbus-send --session --type=method_call --dest=org.kde.telly_spelly /TellySpelly org.kde.telly_spelly.ToggleRecording
+Exec=dbus-send --session --type=method_call --dest={DBUS_SERVICE} /TellySpelly {DBUS_SERVICE}.ToggleRecording
 """
 
 
@@ -99,6 +117,14 @@ def install_desktop_entry_silent():
         pass
 
 
+def install_shortcuts_silent():
+    """Install keyboard shortcuts silently based on desktop environment"""
+    if DESKTOP_ENV == 'kde':
+        install_kde_shortcuts_silent()
+    else:
+        install_xfce_shortcuts_silent()
+
+
 def install_kde_shortcuts_silent():
     """Install KDE shortcut configuration silently"""
     shortcuts_dir = Path.home() / ".local/share/kglobalaccel"
@@ -140,13 +166,28 @@ _k_friendly_name=Telly Spelly
 
     # Reload kglobalaccel to pick up new shortcuts
     try:
-        # Try kquitapp + kstart to restart kglobalaccel (most reliable)
         kquitapp = "kquitapp6" if shutil.which("kquitapp6") else "kquitapp5"
         kstart = "kstart6" if shutil.which("kstart6") else "kstart5"
         subprocess.run([kquitapp, "kglobalaccel"], capture_output=True, timeout=5)
         subprocess.run([kstart, "kglobalaccel6" if "6" in kstart else "kglobalaccel5"],
                       capture_output=True, timeout=5)
     except Exception:
+        pass
+
+
+def install_xfce_shortcuts_silent():
+    """Install XFCE4 shortcut configuration silently"""
+    try:
+        # Use xfconf-query to set up keyboard shortcut
+        shortcut_command = f"dbus-send --session --type=method_call --dest={DBUS_SERVICE} /TellySpelly {DBUS_SERVICE}.ToggleRecording"
+
+        subprocess.run([
+            "xfconf-query", "-c", "xfce4-keyboard-shortcuts",
+            "-p", "/commands/custom/<Primary><Alt>r",
+            "-n", "-t", "string", "-s", shortcut_command
+        ], capture_output=True, check=False)
+    except FileNotFoundError:
+        # xfconf-query not available, skip silent installation
         pass
 
 
@@ -201,9 +242,18 @@ def install_desktop_entry():
     print(f"✓ Desktop entry installed to {desktop_file}")
 
 
+def install_shortcuts():
+    """Install keyboard shortcuts based on desktop environment"""
+    print(f"\nDetected desktop environment: {DESKTOP_ENV.upper()}")
+
+    if DESKTOP_ENV == 'kde':
+        install_kde_shortcuts()
+    else:
+        install_xfce_shortcuts()
+
+
 def install_kde_shortcuts():
     """Install KDE shortcut configuration"""
-    # Install shortcut desktop file for KDE
     shortcuts_dir = Path.home() / ".local/share/kglobalaccel"
     shortcuts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -226,6 +276,7 @@ def install_kde_shortcuts():
             "Telly Spelly"
         ], capture_output=True)
         print("✓ KDE shortcut Ctrl+Alt+R configured")
+        print("  (You can modify this in System Settings → Shortcuts)")
     except FileNotFoundError:
         # Fallback: write directly to config file
         kglobal_rc = Path.home() / ".config/kglobalshortcutsrc"
@@ -257,19 +308,40 @@ _k_friendly_name=Telly Spelly
         pass
 
 
+def install_xfce_shortcuts():
+    """Install XFCE4 shortcut configuration"""
+    shortcut_command = f"dbus-send --session --type=method_call --dest={DBUS_SERVICE} /TellySpelly {DBUS_SERVICE}.ToggleRecording"
+
+    try:
+        # Use xfconf-query to set up keyboard shortcut
+        subprocess.run([
+            "xfconf-query", "-c", "xfce4-keyboard-shortcuts",
+            "-p", "/commands/custom/<Primary><Alt>r",
+            "-n", "-t", "string", "-s", shortcut_command
+        ], capture_output=True, check=False)
+        print("✓ XFCE4 shortcut Ctrl+Alt+R configured")
+        print("  (You can modify this in Settings → Keyboard → Application Shortcuts)")
+    except FileNotFoundError:
+        print("⚠ xfconf-query not found. Please configure shortcuts manually:")
+        print("  1. Open Settings → Keyboard → Application Shortcuts")
+        print("  2. Click 'Add' and use command:")
+        print(f"     {shortcut_command}")
+        print("  3. Press Ctrl+Alt+R when prompted")
+
+
 def main():
     """Main install function"""
     print("Installing Telly Spelly desktop integration...\n")
 
     install_icon()
     install_desktop_entry()
-    install_kde_shortcuts()
+    install_shortcuts()
 
     print("\n✓ Installation complete!")
     print("\nTo start Telly Spelly:")
     print("  - Run 'telly-spelly' from terminal")
     print("  - Or find 'Telly Spelly' in your application menu")
-    print("  - Use Ctrl+Alt+R to toggle recording (may need logout/login)")
+    print("  - Use Ctrl+Alt+R to toggle recording")
 
     return 0
 
@@ -281,8 +353,37 @@ def uninstall():
     files_to_remove = [
         Path.home() / ".local/share/applications/telly-spelly.desktop",
         Path.home() / ".local/share/icons/hicolor/128x128/apps/telly-spelly.png",
-        Path.home() / ".local/share/kglobalaccel/telly-spelly.desktop",
     ]
+
+    # Remove shortcuts based on desktop environment
+    if DESKTOP_ENV == 'kde':
+        # Remove KDE shortcut
+        kwriteconfig = "kwriteconfig6" if shutil.which("kwriteconfig6") else "kwriteconfig5"
+        try:
+            if shutil.which(kwriteconfig):
+                subprocess.run([
+                    kwriteconfig, "--file", "kglobalshortcutsrc",
+                    "--group", "telly-spelly.desktop",
+                    "--delete"
+                ], capture_output=True, check=False)
+                print("✓ Removed KDE shortcut")
+        except Exception:
+            pass
+        # Also remove kglobalaccel file
+        kglobalaccel_file = Path.home() / ".local/share/kglobalaccel/telly-spelly.desktop"
+        if kglobalaccel_file.exists():
+            kglobalaccel_file.unlink()
+    else:
+        # Remove XFCE4 shortcut
+        try:
+            subprocess.run([
+                "xfconf-query", "-c", "xfce4-keyboard-shortcuts",
+                "-p", "/commands/custom/<Primary><Alt>r",
+                "-r"
+            ], capture_output=True, check=False)
+            print("✓ Removed XFCE4 shortcut")
+        except FileNotFoundError:
+            pass
 
     for f in files_to_remove:
         if f.exists():
@@ -290,8 +391,6 @@ def uninstall():
             print(f"✓ Removed {f}")
 
     print("\n✓ Uninstall complete!")
-    print("Note: You may need to manually remove the shortcut from")
-    print("      System Settings → Shortcuts → Telly Spelly")
 
     return 0
 
