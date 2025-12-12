@@ -3,3 +3,4 @@
 builddir/
 *.flatpak
 repo/
+pypi_cache/

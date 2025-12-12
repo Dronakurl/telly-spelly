@@ -56,12 +56,51 @@ Right-click the tray icon → **Settings**:
 - Language
 - Input device
 
+## Flatpak (CPU-only)
+
+A CPU-only Flatpak build is available that doesn't require NVIDIA drivers.
+
+### Building from source
+
+```bash
+# Install flatpak-builder
+sudo apt install flatpak-builder  # Debian/Ubuntu
+sudo pacman -S flatpak-builder    # Arch
+
+# Install KDE runtime
+flatpak install flathub org.kde.Platform//6.8 org.kde.Sdk//6.8
+
+# Build
+cd flatpak
+flatpak-builder --force-clean builddir org.kde.TellySpelly.yml
+
+# Install locally
+flatpak-builder --user --install --force-clean builddir org.kde.TellySpelly.yml
+
+# Run
+flatpak run org.kde.TellySpelly
+```
+
+### Regenerating Python dependencies
+
+If you need to update Python dependencies:
+
+```bash
+pip install req2flatpak
+python -m req2flatpak \
+  --requirements "numpy==2.0.0" "scipy==1.13.0" "tiktoken==0.8.0" "regex==2024.5.15" \
+    "more-itertools==10.2.0" "tqdm==4.66.4" "requests==2.32.3" "urllib3==2.2.3" \
+    "certifi==2024.8.30" "charset-normalizer==3.4.0" "idna==3.10" \
+  --target-platforms 312-x86_64 \
+  --outfile flatpak/python-deps-wheels.json
+```
+
 ## Requirements
 
 - KDE Plasma 5 or 6
 - Python 3.9+
 - ~2GB disk space (Whisper model)
-- NVIDIA GPU recommended (works on CPU)
+- NVIDIA GPU recommended (works on CPU, Flatpak is CPU-only)
 
 ## Troubleshooting
 
