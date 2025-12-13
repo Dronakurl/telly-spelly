@@ -99,7 +99,9 @@ class Settings:
 
     def get_force_cpu(self):
         """Check if GPU should be disabled (force CPU mode)"""
-        return self.settings.value('force_cpu', False, type=bool)
+        value = self.settings.value('force_cpu', False, type=bool)
+        # Ensure we always return a boolean
+        return bool(value)
 
     def set_force_cpu(self, force_cpu):
         """Set whether to force CPU-only mode"""

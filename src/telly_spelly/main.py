@@ -24,9 +24,76 @@ from .install import install_silent
 from . import gpu
 # from mic_debug import MicDebugWindow
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Setup logging with systemd journal support
+class JournalHandler(logging.Handler):
+    """Custom journal handler that writes to systemd journal"""
+
+    def __init__(self):
+        super().__init__()
+        self.level = logging.INFO
+
+    def emit(self, record):
+        try:
+            import sys
+            # Format message
+            msg = self.format(record)
+
+            # Write to stdout which systemd captures
+            # Add prefix for systemd to categorize
+            prefix = ""
+            if record.levelno >= logging.ERROR:
+                prefix = "<3>"  # Error
+            elif record.levelno >= logging.WARNING:
+                prefix = "<4>"  # Warning
+            elif record.levelno >= logging.INFO:
+                prefix = "<6>"  # Info
+            else:
+                prefix = "<7>"  # Debug
+
+            # Write to stdout with systemd priority prefix
+            sys.stdout.write(f"{prefix}telly-spelly: {msg}\n")
+            sys.stdout.flush()
+
+        except Exception:
+            self.handleError(record)
+
+def setup_logging():
+    """Setup logging that works well with systemd"""
+    import logging
+    import sys
+
+    # Check if we're running under systemd
+    running_under_systemd = 'INVOCATION_ID' in os.environ or 'JOURNAL_STREAM' in os.environ
+
+    if running_under_systemd:
+        # Use systemd-friendly logging
+        journal_handler = JournalHandler()
+        journal_handler.setLevel(logging.INFO)
+
+        formatter = logging.Formatter('%(message)s')
+        journal_handler.setFormatter(formatter)
+
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.INFO)
+        root_logger.addHandler(journal_handler)
+
+        # Also keep stderr for errors
+        error_handler = logging.StreamHandler(sys.stderr)
+        error_handler.setLevel(logging.ERROR)
+        error_handler.setFormatter(logging.Formatter('ERROR: %(name)s: %(message)s'))
+        root_logger.addHandler(error_handler)
+
+    else:
+        # Regular console logging for development
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(name)s: %(levelname)s: %(message)s',
+            stream=sys.stderr
+        )
+
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
 
 # Suppress ALSA error messages
 try:

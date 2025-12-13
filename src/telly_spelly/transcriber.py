@@ -70,15 +70,33 @@ class WhisperTranscriber(QObject):
         try:
             settings = Settings()
             model_name = settings.get('model', 'turbo')
-            logger.info(f"Loading Whisper model: {model_name}")
-            
+
+            # Determine device - use GPU if available and not force CPU mode
+            force_cpu = settings.get_force_cpu()
+
+            if not force_cpu:
+                try:
+                    import torch
+                    if torch.cuda.is_available():
+                        device = "cuda"
+                        logger.info(f"Loading Whisper model: {model_name} on GPU ({torch.cuda.get_device_name()})")
+                    else:
+                        device = "cpu"
+                        logger.info(f"Loading Whisper model: {model_name} on CPU (CUDA not available)")
+                except ImportError:
+                    device = "cpu"
+                    logger.info(f"Loading Whisper model: {model_name} on CPU (PyTorch not available)")
+            else:
+                device = "cpu"
+                logger.info(f"Loading Whisper model: {model_name} on CPU (force CPU mode enabled)")
+
             # Redirect whisper's logging to our logger
             import logging as whisper_logging
             whisper_logging.getLogger("whisper").setLevel(logging.WARNING)
-            
-            self.model = whisper.load_model(model_name)
-            logger.info("Model loaded successfully")
-            
+
+            self.model = whisper.load_model(model_name, device=device)
+            logger.info(f"Model loaded successfully on {device}")
+
         except Exception as e:
             logger.error(f"Failed to load Whisper model: {e}")
             raise
