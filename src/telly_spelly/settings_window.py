@@ -6,6 +6,7 @@ import logging
 import subprocess
 import os
 from .settings import Settings
+from .desktop_env import get_desktop_environment, get_dbus_service_name
 
 logger = logging.getLogger(__name__)
 
@@ -304,15 +305,32 @@ class SettingsWindow(QWidget):
             self.loader_thread = None
 
     def open_system_shortcuts(self):
-        """Open KDE System Settings to the shortcuts page"""
-        try:
-            # Try KDE 6 first, then KDE 5
-            subprocess.Popen(['systemsettings', 'kcm_keys'], start_new_session=True)
-        except FileNotFoundError:
+        """Open keyboard/shortcut settings based on desktop environment"""
+        desktop_env = get_desktop_environment()
+        dbus_service = get_dbus_service_name(desktop_env)
+
+        if desktop_env == 'kde':
+            # Open KDE System Settings
             try:
-                subprocess.Popen(['systemsettings5', 'kcm_keys'], start_new_session=True)
+                # Try KDE 6 first, then KDE 5
+                subprocess.Popen(['systemsettings', 'kcm_keys'], start_new_session=True)
+            except FileNotFoundError:
+                try:
+                    subprocess.Popen(['systemsettings5', 'kcm_keys'], start_new_session=True)
+                except FileNotFoundError:
+                    QMessageBox.information(self, "Shortcuts",
+                        "Could not open System Settings.\n\n"
+                        "Please open System Settings manually and navigate to:\n"
+                        "Shortcuts → Shortcuts → Telly Spelly")
+        else:
+            # Open XFCE4 keyboard settings
+            try:
+                subprocess.Popen(['xfce4-keyboard-settings'], start_new_session=True)
             except FileNotFoundError:
                 QMessageBox.information(self, "Shortcuts",
-                    "Could not open System Settings.\n\n"
-                    "Please open System Settings manually and navigate to:\n"
-                    "Shortcuts → Shortcuts → Telly Spelly")
+                    "Could not open Keyboard Settings.\n\n"
+                    "Please open Settings → Keyboard → Application Shortcuts manually\n"
+                    "and add a shortcut with this command:\n\n"
+                    f"dbus-send --session --type=method_call --dest={dbus_service} "
+                    f"/TellySpelly {dbus_service}.ToggleRecording\n\n"
+                    "Assign it to Ctrl+Alt+R when prompted.")

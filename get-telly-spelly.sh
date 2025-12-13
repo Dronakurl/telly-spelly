@@ -24,14 +24,14 @@ REPO_URL="https://github.com/Dronakurl/telly-spelly.git"
 
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║              Telly Spelly Installer                      ║${NC}"
-echo -e "${GREEN}║     Voice-to-text transcription for KDE Plasma          ║${NC}"
+echo -e "${GREEN}║     Voice-to-text transcription for XFCE4               ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo
 
 # Check if running on a supported system
 check_system() {
-    if [[ ! "$XDG_CURRENT_DESKTOP" =~ (KDE|plasma) ]] && [[ -z "$KDE_FULL_SESSION" ]]; then
-        echo -e "${YELLOW}Warning: KDE Plasma not detected. Telly Spelly is designed for KDE.${NC}"
+    if [[ ! "$XDG_CURRENT_DESKTOP" =~ (XFCE|xfce) ]]; then
+        echo -e "${YELLOW}Warning: XFCE4 not detected. Telly Spelly is designed for XFCE4.${NC}"
         echo -e "${YELLOW}It may still work, but some features might not be available.${NC}"
         echo
     fi
@@ -244,32 +244,34 @@ EOF
     update-desktop-database "$desktop_dir" 2>/dev/null || true
     gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 
-    # Register KDE shortcuts
-    register_kde_shortcuts
+    # Register XFCE4 shortcuts
+    register_xfce_shortcuts
 }
 
-# Register KDE global shortcuts
-register_kde_shortcuts() {
-    local shortcuts_file="$HOME/.config/kglobalshortcutsrc"
+# Register XFCE4 global shortcuts
+register_xfce_shortcuts() {
+    local toggle_cmd="dbus-send --session --type=method_call --dest=org.freedesktop.telly_spelly /TellySpelly org.freedesktop.telly_spelly.ToggleRecording"
 
-    # Check if kwriteconfig5 or kwriteconfig6 is available
-    local kwriteconfig=""
-    if command -v kwriteconfig6 &> /dev/null; then
-        kwriteconfig="kwriteconfig6"
-    elif command -v kwriteconfig5 &> /dev/null; then
-        kwriteconfig="kwriteconfig5"
-    else
-        echo -e "  ${YELLOW}!${NC} kwriteconfig not found, shortcuts need manual setup"
+    # Check if xfconf-query is available
+    if ! command -v xfconf-query &> /dev/null; then
+        echo -e "  ${YELLOW}!${NC} xfconf-query not found, shortcuts need manual setup"
+        echo -e "  ${YELLOW}→${NC} Add in Settings → Keyboard → Application Shortcuts"
         return
     fi
 
-    # Add telly-spelly shortcuts
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "_k_friendly_name" "Telly Spelly"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "ToggleRecording" "Ctrl+Alt+R,Ctrl+Alt+R,Toggle Recording"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "StartRecording" ",none,Start Recording"
-    $kwriteconfig --file "$shortcuts_file" --group "telly-spelly.desktop" --key "StopRecording" "Ctrl+Alt+S,Ctrl+Alt+S,Stop Recording"
+    # Register shortcut with XFCE4
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "/commands/custom/<Primary><Alt>r" \
+        -n -t string -s "$toggle_cmd" 2>/dev/null || \
+    xfconf-query -c xfce4-keyboard-shortcuts \
+        -p "/commands/custom/<Primary><Alt>r" \
+        -s "$toggle_cmd" 2>/dev/null
 
-    echo -e "  ${GREEN}✓${NC} Keyboard shortcuts registered (Ctrl+Alt+R)"
+    if [ $? -eq 0 ]; then
+        echo -e "  ${GREEN}✓${NC} Keyboard shortcuts registered (Ctrl+Alt+R)"
+    else
+        echo -e "  ${YELLOW}!${NC} Could not register shortcuts automatically"
+    fi
 }
 
 # Print success message
